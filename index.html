@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UFO Ranch — Level 1: Green Planet</title>
+  <link rel="stylesheet" href="css/game.css" />
+</head>
+<body>
+  <div id="frame">
+    <div id="stage">
+      <canvas id="game" width="1600" height="900"></canvas>
+
+      <div id="hud">
+        <div class="pill pill-bar">
+          <div class="icon-wrap"><canvas id="icon-ufo" width="72" height="72"></canvas></div>
+          <div class="pill-body">
+            <div class="lbl">FUEL</div>
+            <div class="bar"><i id="fuel-bar"></i></div>
+          </div>
+        </div>
+        <div class="pill pill-bar">
+          <div class="icon-wrap bolt">⚡</div>
+          <div class="pill-body">
+            <div class="lbl">ENERGY</div>
+            <div class="bar"><i id="energy-bar"></i></div>
+          </div>
+        </div>
+        <div class="spacer"></div>
+        <div class="pill pill-stat">
+          <div class="icon-wrap crate-ic">📦</div>
+          <div class="stat" id="crate-stat">0 / 3</div>
+        </div>
+        <div class="pill pill-stat">
+          <div class="icon-wrap star-ic">★</div>
+          <div class="stat"><span class="score-lbl">SCORE</span> <span id="score-stat">0</span></div>
+        </div>
+        <button id="pause-btn" type="button" aria-label="Pause">❚❚</button>
+      </div>
+
+      <div id="goal-chip">ANIMALS <b id="goal-stat">0 / 10</b></div>
+
+      <div id="banner" class="hidden"></div>
+
+      <div id="overlay" class="show">
+        <div class="panel">
+          <h1 id="ov-title">UFO RANCH</h1>
+          <p id="ov-sub">Level 1 — Green Planet · Fly the UFO, abduct 10 animals, then land</p>
+          <button id="ov-btn" type="button">CLICK TO START</button>
+        </div>
+      </div>
+    </div>
+    <div id="hint">
+      <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrows fly (starts gravity)</span>
+      <span><kbd>Space</kbd> beam — UFO almost stops</span>
+      <span><kbd>P</kbd> pause</span>
+    </div>
+  </div>
+  <script src="js/game.js"></script>
+</body>
+</html>
