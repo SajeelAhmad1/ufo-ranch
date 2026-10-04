@@ -34,7 +34,7 @@
         <button id="pause-btn" type="button" aria-label="Pause">❚❚</button>
       </div>
 
-      <div id="goal-chip">ANIMALS <b id="goal-stat">0 / 3</b></div>
+      <div id="goal-chip">ANIMALS <b id="goal-stat">0 / 5</b></div>
 
       <div id="banner" class="hidden"></div>
 
@@ -50,6 +50,13 @@
       <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrows fly (starts gravity)</span>
       <span><kbd>Space</kbd> beam — UFO almost stops</span>
       <span><kbd>P</kbd> pause</span>
+    </div>
+    <div id="dev-bar">
+      <span>DEV</span>
+      <button onclick="devGoto(0)">L1</button>
+      <button onclick="devGoto(1)">L2</button>
+      <button onclick="devGoto(2)">L3</button>
+      <button onclick="devGoto(3)">L4</button>
     </div>
   </div>
   <script src="js/sprites_b64.js"></script>

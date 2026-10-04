@@ -9,8 +9,13 @@
   const WALK_Y = 818;
   const UFO_Y = 290;
   const PAD_X = 1288;
-  const TARGET = 3;
-  const LEVEL1_POOL = ["duck", "frog", "turtle"];
+  const LEVELS = [
+    { target: 3,  animals: [["duck", 470], ["frog", 780], ["turtle", 1000]],                                                    banner: "Level 1 — Abduct duck, frog & tortoise!" },
+    { target: 5,  animals: [["duck", 300], ["duck", 700], ["frog", 500], ["frog", 950], ["turtle", 1100]],                      banner: "Level 2 — Abduct 2 ducks, 2 frogs & a tortoise!" },
+    { target: 5,  animals: [["duck", 400], ["duckling", 650], ["turtle", 900], ["frog", 280], ["frog", 1050]], frogHopScale: 3.0, banner: "Level 3 — Watch out, the frogs jump higher!" },
+    { target: 3,  animals: [["frog", 300], ["frog", 700], ["frog", 1050]],                                      frogHopScale: 6.0, frogFlee: true, banner: "Level 4 — 3 frogs. They flee. Good luck!" },
+  ];
+  let currentLevel = 0;
   const UFO_W = 186;
   const UFO_H = 128;
 
@@ -392,6 +397,7 @@
       y: WALK_Y,
       dir: Math.random() < 0.5 ? -1 : 1,
       speed: def.speed * rand(0.88, 1.12),
+      hopScale: type === "frog" ? frogHopScale() : 1.0,
       phase: rand(0, Math.PI * 2),
       walk: rand(0, 1),
       state: "walk",
@@ -406,8 +412,12 @@
 
   function fillLevel() {
     G.animals = [];
-    [["duck", 470], ["frog", 780], ["turtle", 1000]].forEach(([t, x]) => spawnAnimal(t, x));
+    LEVELS[currentLevel].animals.forEach(([t, x]) => spawnAnimal(t, x));
   }
+
+  function levelTarget() { return LEVELS[currentLevel].target; }
+  function frogHopScale() { return LEVELS[currentLevel].frogHopScale ?? 1.0; }
+  function frogFlee() { return LEVELS[currentLevel].frogFlee ?? false; }
 
   function spawnFuelCapsule() {
     const spots = [
@@ -422,7 +432,7 @@
 
   function updateCapsules(dt) {
     if (G.state !== "play") return;
-    if (G.fuel > 20 || G.fuel < 5) {
+    if (G.fuel > 25 || G.fuel < 5) {
       G.fuelCapsule = null;
       return;
     }
@@ -500,7 +510,7 @@
       { x: 1488, y: WALK_Y - 175, w: 110, h: 175, name: "tree" },
       { x: 0, y: WALK_Y + 2, w: W, h: 120, name: "ground" },
     ];
-    if (!(G.collected >= TARGET && G.state !== "play")) {
+    if (!(G.collected >= levelTarget() && G.state !== "play")) {
       boxes.push({ x: 1228, y: WALK_Y - 62, w: 128, h: 62, name: "pad" });
     }
     return boxes;
@@ -574,7 +584,7 @@
 
   function flyUFO(dt) {
     const u = G.ufo;
-    const beaming = (keys[" "] || keys.Space || pointerBeam) && G.energy > 0 && G.collected < TARGET && G.state === "play" && !u.landing;
+    const beaming = (keys[" "] || keys.Space || pointerBeam) && G.energy > 0 && G.collected < levelTarget() && G.state === "play" && !u.landing;
     if (!u.armed) {
       if (movePressed()) u.armed = true;
       else {
@@ -619,7 +629,7 @@
     u.y = clamp(u.y, 140, WALK_Y + 24);
   }
 
-  function showOverlay(title, sub, action, isComplete, fuelSnapshot) {
+  function showOverlay(title, sub, action, isComplete, fuelSnapshot, nextLvl) {
     ovTitle.textContent = title;
     const panel = overlay.querySelector(".panel");
     panel.classList.toggle("panel-complete", !!isComplete);
@@ -635,6 +645,7 @@
       ovSub.textContent = sub;
     }
     ovBtn.textContent = action;
+    ovBtn.dataset.nextLvl = nextLvl ?? "";
     overlay.classList.add("show");
   }
 
@@ -642,7 +653,8 @@
     overlay.classList.remove("show");
   }
 
-  function startLevel() {
+  function startLevel(lvl) {
+    currentLevel = lvl ?? 0;
     G = makeGame();
     G.state = "play";
     G.last = performance.now();
@@ -650,7 +662,7 @@
     beamLock = 0.4;
     pointerBeam = false;
     hideOverlay();
-    banner("Abduct 3 animals — duck, frog & tortoise!");
+    banner(LEVELS[currentLevel].banner);
     beep({ freq: 660, dur: 0.1, type: "sine", gain: 0.07 });
   }
 
@@ -660,7 +672,7 @@
       showOverlay("PAUSED", "Hover until you press a move key. Hold Space to beam — the UFO almost stops.", "RESUME");
     } else if (G.state === "paused") {
       hideOverlay();
-      G.state = G.collected >= TARGET ? "toPad" : "play";
+      G.state = G.collected >= levelTarget() ? "toPad" : "play";
       G.last = performance.now();
     }
   }
@@ -671,7 +683,7 @@
     fuelBar.className = G.fuel < 22 ? "crit" : G.fuel < 40 ? "low" : "";
     energyBar.className = G.energy < 18 ? "low" : "";
     scoreStat.textContent = String(G.score);
-    goalStat.textContent = G.collected + " / " + TARGET;
+    goalStat.textContent = G.collected + " / " + levelTarget();
     if (G.messageT <= 0) bannerEl.classList.add("hidden");
   }
 
@@ -691,7 +703,7 @@
     if (G.ufo.flash > 0) G.ufo.flash -= dt;
 
     const u = G.ufo;
-    const wantBeam = beamLock <= 0 && (keys[" "] || keys.Space || pointerBeam) && G.energy > 0 && G.collected < TARGET && !u.landing;
+    const wantBeam = beamLock <= 0 && (keys[" "] || keys.Space || pointerBeam) && G.energy > 0 && G.collected < levelTarget() && !u.landing;
 
     if (G.state === "play" || G.state === "toPad") {
       flyUFO(dt);
@@ -728,7 +740,9 @@
         burst(u.x, u.y + 20, "#ffe56a", 6);
         if (G.completeT > 0.9) {
           G.state = "complete";
-          showOverlay("LEVEL COMPLETE!", "", "PLAY AGAIN", true, G.fuelAtLanding);
+          const nextLvl = currentLevel + 1;
+          const hasNext = nextLvl < LEVELS.length;
+          showOverlay("LEVEL COMPLETE!", "", hasNext ? "NEXT LEVEL" : "PLAY AGAIN", true, G.fuelAtLanding, hasNext ? nextLvl : 0);
         }
       }
     }
@@ -762,15 +776,24 @@
       if (a.state === "walk") {
         const inLight = G.ufo.beam && caught;
         if (inLight && G.state === "play") {
-          a.scare = 1;
-          a.scareHold += dt;
-          if (!a.cried) {
-            a.cried = true;
-            sfxAnimal(a.type);
-          }
-          if (a.scareHold > 0.28) {
-            a.state = "lift";
-            sfxAbduct();
+          if (a.type === "frog" && a.hopScale > 1.0) {
+            a.hopScale = 1.0;
+            a.scareHold = 0;
+            a.cried = false;
+            a.walk = 0;
+            a.hop = 0;
+            a.scare = lerp(a.scare, 0, clamp(dt * 7, 0, 1));
+          } else {
+            a.scare = 1;
+            a.scareHold += dt;
+            if (!a.cried) {
+              a.cried = true;
+              sfxAnimal(a.type);
+            }
+            if (a.scareHold > 0.28) {
+              a.state = "lift";
+              sfxAbduct();
+            }
           }
         } else {
           a.scare = lerp(a.scare, 0, clamp(dt * 7, 0, 1));
@@ -778,10 +801,28 @@
           a.cried = false;
           a.walk += dt * (a.speed / 26);
           if (a.type === "frog") {
+            const hs = a.hopScale;
             const hopT = a.walk % 1;
-            const airborne = hopT > 0.28 && hopT < 0.72;
-            const hopSpeed = airborne ? 1.35 : 0.35;
-            a.hop = airborne ? Math.sin((hopT - 0.28) / 0.44 * Math.PI) : 0;
+            const airEnd = Math.min(0.28 + 0.44 * hs, 0.95);
+            const airborne = hopT > 0.28 && hopT < airEnd;
+            const hopSpeed = airborne ? 1.35 * hs : 0.35;
+            a.hop = airborne ? Math.sin((hopT - 0.28) / (airEnd - 0.28) * Math.PI) : 0;
+            if (a.hopScale > 1.0 && frogFlee()) {
+              const fleeRange = 320;
+              const dx = u.x - a.x;
+              const leftSpace = a.x - 150;
+              const rightSpace = 1160 - a.x;
+              const totalSpace = 1160 - 150;
+              const cornered = (a.dir === -1 && leftSpace < totalSpace * 0.2) ||
+                               (a.dir === 1  && rightSpace < totalSpace * 0.2);
+              if (!airborne) {
+                if (cornered) {
+                  a.dir *= -1;
+                } else if (Math.abs(dx) < fleeRange) {
+                  a.dir = dx > 0 ? -1 : 1;
+                }
+              }
+            }
             a.x += a.dir * a.speed * hopSpeed * dt;
           } else {
             a.x += a.dir * a.speed * dt;
@@ -807,7 +848,7 @@
           addFloater(u.x + 86, u.y + 8, `+${def.score}`);
           burst(u.x, u.y + 24, "#9be7ff", 22);
           sfxScore();
-          if (G.collected >= TARGET) {
+          if (G.collected >= levelTarget()) {
             banner("Fly to the landing pad!");
             G.state = "toPad";
             u.beam = false;
@@ -903,7 +944,7 @@
     const img = sprites[def.img];
     const cycle = (a.walk % 1) * Math.PI * 2;
     const contact = Math.abs(Math.sin(cycle));
-    const bob = a.type === "frog" ? (a.hop || 0) * 38 : contact * 5;
+    const bob = a.type === "frog" ? (a.hop || 0) * 38 * a.hopScale : contact * 5;
     const tilt = a.type === "frog" ? (a.hop || 0) * -0.18 : Math.sin(cycle) * 0.07;
     const y = a.y - bob;
 
@@ -1159,7 +1200,9 @@
 
     lifting.forEach((a) => {
       const def = ANIMAL_DEFS[a.type];
-      drawSprite(sprites[def.img], a.x, a.y, def.w * 0.92, def.h * 0.92, a.dir, -0.45 + Math.sin(a.wiggle) * 0.25);
+      drawSprite(sprites[def.img], a.x, a.y, def.w * 0.92, def.h * 0.92, a.dir, 0);
+      // oscillation
+      // drawSprite(sprites[def.img], a.x, a.y, def.w * 0.92, def.h * 0.92, a.dir, -0.45 + Math.sin(a.wiggle) * 0.25);
       drawWorriedFace(a, def, a.y);
     });
 
@@ -1252,15 +1295,17 @@
     e.stopPropagation();
     ensureAudio();
     if (G.state === "paused") togglePause();
-    else startLevel();
+    else startLevel(Number(ovBtn.dataset.nextLvl) || 0);
   });
+
+  window.devGoto = (lvl) => startLevel(lvl);
 
   loadSprites()
     .then(() => {
       fillLevel();
       updateHUD();
       ovTitle.textContent = "UFO RANCH";
-      ovSub.textContent = "Level 1 — Green Planet · Abduct 3 animals: duck, frog & tortoise, then land";
+      ovSub.textContent = "Level 1 — Abduct duck, frog & tortoise, then land";
       ovBtn.textContent = "CLICK TO START";
       requestAnimationFrame(loop);
     })
@@ -1269,7 +1314,7 @@
       fillLevel();
       updateHUD();
       ovTitle.textContent = "UFO RANCH";
-      ovSub.textContent = "Level 1 — Green Planet · Abduct 3 animals: duck, frog & tortoise, then land";
+      ovSub.textContent = "Level 1 — Abduct duck, frog & tortoise, then land";
       ovBtn.textContent = "CLICK TO START";
       requestAnimationFrame(loop);
     });

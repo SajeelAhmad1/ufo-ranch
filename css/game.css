@@ -293,3 +293,25 @@ kbd {
   font-family: inherit;
   font-size: 12px;
 }
+
+#dev-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #ff9a2a;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+#dev-bar button {
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid #ff9a2a;
+  background: rgba(255,154,42,0.12);
+  color: #ff9a2a;
+  font: 700 11px "Trebuchet MS", sans-serif;
+  cursor: pointer;
+}
+
+#dev-bar button:hover { background: rgba(255,154,42,0.28); }
