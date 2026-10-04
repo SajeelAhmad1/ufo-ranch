@@ -17,6 +17,7 @@
     { target: 4,  animals: [["duck", 400], ["frog", 650], ["turtle", 900], ["duckling", 300]], bird: true,        banner: "Level 5 — Watch the skies! A bird is flying!" },
     { target: 3,  animals: [["frog", 300], ["frog", 700], ["frog", 1050]],                      frogHopScale: 6.0, frogFlee: true, birds: [{ y: 260, speed: 180, waitT: 0, min: 3, max: 6 }, { y: 340, speed: 260, waitT: 2.5, min: 3, max: 6 }], banner: "Level 6 — 2 birds, 3 hyper frogs. Survive!" },
     { target: 10, animals: [["duck", 300], ["duck", 750], ["frog", 450], ["frog", 850], ["frog", 1050], ["turtle", 200], ["turtle", 600], ["duckling", 400], ["duckling", 900], ["croc", 700]], frogHopScale: 4.0, birds: [{ y: 230, speed: 420, waitT: 0, min: 1, max: 2 }, { y: 290, speed: 480, waitT: 1.0, min: 1, max: 2 }, { y: 350, speed: 380, waitT: 2.0, min: 1, max: 2 }], banner: "Level 7 — 10 animals, 3 fast birds. Chaos!" },
+    { target: 10, animals: [["duck", 400], ["frog", 700], ["duckling", 1000], ["duck", 250], ["frog", 550], ["duckling", 850], ["turtle", 150], ["turtle", 950], ["croc", 650], ["frog", 1100]], frogHopScale: 3.0, animalFlee: true, banner: "Level 8 — They sense you coming. Sneak up!" },
   ];
   let currentLevel = 0;
   const UFO_W = 186;
@@ -433,6 +434,7 @@
   function levelTarget() { return LEVELS[currentLevel].target; }
   function frogHopScale() { return LEVELS[currentLevel].frogHopScale ?? 1.0; }
   function frogFlee() { return LEVELS[currentLevel].frogFlee ?? false; }
+  function animalFlee() { return LEVELS[currentLevel].animalFlee ?? false; }
 
   function spawnFuelCapsule() {
     const spots = [
@@ -837,6 +839,7 @@
           a.scare = lerp(a.scare, 0, clamp(dt * 7, 0, 1));
           a.scareHold = 0;
           a.cried = false;
+          const beamNearby = G.ufo.beam && Math.abs(u.x - a.x) < 80 && a.dir === (u.x > a.x ? 1 : -1);
           a.walk += dt * (a.speed / 26);
           if (a.type === "frog") {
             const hs = a.hopScale;
@@ -863,10 +866,22 @@
             }
             a.x += a.dir * a.speed * hopSpeed * dt;
           } else {
-            a.x += a.dir * a.speed * dt;
+            if (!beamNearby) a.x += a.dir * a.speed * dt;
           }
-          if (a.x < 150) { a.x = 150; a.dir = 1; }
-          if (a.x > 1160) { a.x = 1160; a.dir = -1; }
+          if (animalFlee()) {
+            if (u.beam) {
+              const dx = u.x - a.x;
+              if (Math.abs(dx) < 400 && !beamNearby) {
+                a.dir = dx > 0 ? -1 : 1;
+                a.x += a.dir * a.speed * 3.0 * dt;
+              }
+            }
+            if (a.x < -80) { a.x = W + 80; }
+            if (a.x > W + 80) { a.x = -80; }
+          } else {
+            if (a.x < 150) { a.x = 150; a.dir = 1; }
+            if (a.x > 1160) { a.x = 1160; a.dir = -1; }
+          }
           if (Math.random() < dt * 0.035) a.dir *= -1;
         }
       } else if (a.state === "lift") {
