@@ -15,7 +15,8 @@
     { target: 5,  animals: [["duck", 400], ["duckling", 650], ["turtle", 900], ["frog", 280], ["frog", 1050]], frogHopScale: 3.0, banner: "Level 3 — Watch out, the frogs jump higher!" },
     { target: 3,  animals: [["frog", 300], ["frog", 700], ["frog", 1050]],                                      frogHopScale: 6.0, frogFlee: true, banner: "Level 4 — 3 frogs. They flee. Good luck!" },
     { target: 4,  animals: [["duck", 400], ["frog", 650], ["turtle", 900], ["duckling", 300]], bird: true,        banner: "Level 5 — Watch the skies! A bird is flying!" },
-    { target: 3,  animals: [["frog", 300], ["frog", 700], ["frog", 1050]],                      frogHopScale: 6.0, frogFlee: true, birds: [{ y: 260, speed: 180, waitT: 0 }, { y: 340, speed: 260, waitT: 2.5 }], banner: "Level 6 — 2 birds, 3 hyper frogs. Survive!" },
+    { target: 3,  animals: [["frog", 300], ["frog", 700], ["frog", 1050]],                      frogHopScale: 6.0, frogFlee: true, birds: [{ y: 260, speed: 180, waitT: 0, min: 3, max: 6 }, { y: 340, speed: 260, waitT: 2.5, min: 3, max: 6 }], banner: "Level 6 — 2 birds, 3 hyper frogs. Survive!" },
+    { target: 10, animals: [["duck", 300], ["duck", 750], ["frog", 450], ["frog", 850], ["frog", 1050], ["turtle", 200], ["turtle", 600], ["duckling", 400], ["duckling", 900], ["croc", 700]], frogHopScale: 4.0, birds: [{ y: 230, speed: 420, waitT: 0, min: 1, max: 2 }, { y: 290, speed: 480, waitT: 1.0, min: 1, max: 2 }, { y: 350, speed: 380, waitT: 2.0, min: 1, max: 2 }], banner: "Level 7 — 10 animals, 3 fast birds. Chaos!" },
   ];
   let currentLevel = 0;
   const UFO_W = 186;
@@ -421,9 +422,9 @@
     LEVELS[currentLevel].animals.forEach(([t, x]) => spawnAnimal(t, x));
     const lvl = LEVELS[currentLevel];
     if (lvl.birds) {
-      G.birds = lvl.birds.map((b) => ({ x: -60, y: b.y, speed: b.speed, waiting: b.waitT > 0, waitT: b.waitT }));
+      G.birds = lvl.birds.map((b) => ({ x: -60, y: b.y, speed: b.speed, waiting: b.waitT > 0, waitT: b.waitT, minWait: b.min ?? 3, maxWait: b.max ?? 6 }));
     } else if (lvl.bird) {
-      G.birds = [{ x: -60, y: BIRD_Y, speed: BIRD_SPEED, waiting: false, waitT: 0 }];
+      G.birds = [{ x: -60, y: BIRD_Y, speed: BIRD_SPEED, waiting: false, waitT: 0, minWait: 3, maxWait: 6 }];
     } else {
       G.birds = [];
     }
@@ -902,7 +903,7 @@
           if (bird.waitT <= 0) { bird.waiting = false; bird.x = -60; }
         } else {
           bird.x += bird.speed * dt;
-          if (bird.x > W + 60) { bird.waiting = true; bird.waitT = rand(3, 6); }
+          if (bird.x > W + 60) { bird.waiting = true; bird.waitT = rand(bird.minWait, bird.maxWait); }
           else {
             const birdBox = { x: bird.x - 28, y: bird.y - 18, w: 56, h: 36 };
             if (aabb(ufoHitbox(), birdBox)) {
