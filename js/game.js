@@ -19,6 +19,7 @@
     { target: 10, animals: [["duck", 300], ["duck", 750], ["frog", 450], ["frog", 850], ["frog", 1050], ["turtle", 200], ["turtle", 600], ["duckling", 400], ["duckling", 900], ["croc", 700]], frogHopScale: 4.0, birds: [{ y: 230, speed: 420, waitT: 0, min: 1, max: 2 }, { y: 290, speed: 480, waitT: 1.0, min: 1, max: 2 }, { y: 350, speed: 380, waitT: 2.0, min: 1, max: 2 }], banner: "Level 7 — 10 animals, 3 fast birds. Chaos!" },
     { target: 10, animals: [["duck", 400], ["frog", 700], ["duckling", 1000], ["duck", 250], ["frog", 550], ["duckling", 850], ["turtle", 150], ["turtle", 950], ["croc", 650], ["frog", 1100]], frogHopScale: 3.0, animalFlee: true, banner: "Level 8 — They sense you coming. Sneak up!" },
     { target: 4,  animals: [["frog", 300], ["frog", 600], ["frog", 900], ["frog", 1100]], frogHopScale: 5.0, frogAttack: true, banner: "Level 9 — Frogs attack! Watch out!" },
+    { target: 6,  animals: [["duck", 200], ["duck", 700], ["duckling", 450], ["turtle", 900], ["croc", 600], ["frog", 1050]], frogHopScale: 4.0, animalSpeedMult: 2.2, animalBounce: true, frogAttackCount: 1, birds: [{ y: 500, speed: 620, waitT: 0, min: 1, max: 3 }, { y: 290, speed: 700, waitT: 1.2, min: 1, max: 3 }, { y: 360, speed: 560, waitT: 2.4, min: 1, max: 3 }], banner: "Level 10 — Maximum chaos. Good luck!" },
   ];
   let currentLevel = 0;
   const UFO_W = 186;
@@ -395,7 +396,8 @@
       x: x ?? rand(220, 1120),
       y: WALK_Y,
       dir: Math.random() < 0.5 ? -1 : 1,
-      speed: def.speed * rand(0.88, 1.12),
+      speed: def.speed * rand(0.88, 1.12) * (LEVELS[currentLevel].animalSpeedMult ?? 1.0),
+      canAttack: type === "frog" && ((LEVELS[currentLevel].frogAttackCount ?? 0) > 0 ? frogAttackSpawned++ < LEVELS[currentLevel].frogAttackCount : (LEVELS[currentLevel].frogAttack ?? false)),
       hopScale: type === "frog" ? frogHopScale() : 1.0,
       phase: rand(0, Math.PI * 2),
       walk: rand(0, 1),
@@ -413,11 +415,14 @@
     });
   }
 
+  let frogAttackSpawned = 0;
+
   const BIRD_Y = UFO_Y;
   const BIRD_SPEED = 210;
 
   function fillLevel() {
     G.animals = [];
+    frogAttackSpawned = 0;
     LEVELS[currentLevel].animals.forEach(([t, x]) => spawnAnimal(t, x));
     const lvl = LEVELS[currentLevel];
     if (lvl.birds) {
@@ -788,7 +793,7 @@
       const caught = inBeam(a.x, a.y - def.h * 0.35, def.w * 0.28);
 
       if (a.state === "walk") {
-        if (frogAttack() && a.type === "frog") {
+        if (a.canAttack) {
           const inLight = G.ufo.beam && inBeam(a.x, a.y - ANIMAL_DEFS.frog.h * 0.35, ANIMAL_DEFS.frog.w * 0.28);
           if (inLight && !a.attacking) {
             a.scare = 1;
@@ -838,8 +843,13 @@
                   a.attackVy = (u.y - a.y) / t - 0.5 * 900 * t;
                 }
               }
-              if (a.x < -80) a.x = W + 80;
-              if (a.x > W + 80) a.x = -80;
+              if (LEVELS[currentLevel].animalBounce) {
+                if (a.x < 150) { a.x = 150; a.dir = 1; }
+                if (a.x > W - 150) { a.x = W - 150; a.dir = -1; }
+              } else {
+                if (a.x < -80) a.x = W + 80;
+                if (a.x > W + 80) a.x = -80;
+              }
             }
           }
           return;
@@ -907,8 +917,13 @@
               }
             }
           }
-          if (a.x < -80) { a.x = W + 80; }
-          if (a.x > W + 80) { a.x = -80; }
+          if (LEVELS[currentLevel].animalBounce) {
+            if (a.x < 150) { a.x = 150; a.dir = 1; }
+            if (a.x > W - 150) { a.x = W - 150; a.dir = -1; }
+          } else {
+            if (a.x < -80) { a.x = W + 80; }
+            if (a.x > W + 80) { a.x = -80; }
+          }
           if (Math.random() < dt * 0.035) a.dir *= -1;
         }
       } else if (a.state === "lift") {
