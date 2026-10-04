@@ -18,6 +18,7 @@
     { target: 3,  animals: [["frog", 300], ["frog", 700], ["frog", 1050]],                      frogHopScale: 6.0, frogFlee: true, birds: [{ y: 260, speed: 180, waitT: 0, min: 3, max: 6 }, { y: 340, speed: 260, waitT: 2.5, min: 3, max: 6 }], banner: "Level 6 — 2 birds, 3 hyper frogs. Survive!" },
     { target: 10, animals: [["duck", 300], ["duck", 750], ["frog", 450], ["frog", 850], ["frog", 1050], ["turtle", 200], ["turtle", 600], ["duckling", 400], ["duckling", 900], ["croc", 700]], frogHopScale: 4.0, birds: [{ y: 230, speed: 420, waitT: 0, min: 1, max: 2 }, { y: 290, speed: 480, waitT: 1.0, min: 1, max: 2 }, { y: 350, speed: 380, waitT: 2.0, min: 1, max: 2 }], banner: "Level 7 — 10 animals, 3 fast birds. Chaos!" },
     { target: 10, animals: [["duck", 400], ["frog", 700], ["duckling", 1000], ["duck", 250], ["frog", 550], ["duckling", 850], ["turtle", 150], ["turtle", 950], ["croc", 650], ["frog", 1100]], frogHopScale: 3.0, animalFlee: true, banner: "Level 8 — They sense you coming. Sneak up!" },
+    { target: 4,  animals: [["frog", 300], ["frog", 600], ["frog", 900], ["frog", 1100]], frogHopScale: 5.0, frogAttack: true, banner: "Level 9 — Frogs attack! Watch out!" },
   ];
   let currentLevel = 0;
   const UFO_W = 186;
@@ -405,6 +406,10 @@
       scare: 0,
       scareHold: 0,
       cried: false,
+      attacking: false,
+      attackCD: rand(1, 3),
+      attackVx: 0,
+      attackVy: 0,
     });
   }
 
@@ -428,6 +433,7 @@
   function frogHopScale() { return LEVELS[currentLevel].frogHopScale ?? 1.0; }
   function frogFlee() { return LEVELS[currentLevel].frogFlee ?? false; }
   function animalFlee() { return LEVELS[currentLevel].animalFlee ?? false; }
+  function frogAttack() { return LEVELS[currentLevel].frogAttack ?? false; }
 
   function banner(text) {
     G.message = text;
@@ -782,6 +788,62 @@
       const caught = inBeam(a.x, a.y - def.h * 0.35, def.w * 0.28);
 
       if (a.state === "walk") {
+        if (frogAttack() && a.type === "frog") {
+          const inLight = G.ufo.beam && inBeam(a.x, a.y - ANIMAL_DEFS.frog.h * 0.35, ANIMAL_DEFS.frog.w * 0.28);
+          if (inLight && !a.attacking) {
+            a.scare = 1;
+            a.scareHold += dt;
+            if (!a.cried) { a.cried = true; sfxAnimal("frog"); }
+            if (a.scareHold > 0.28) { a.state = "lift"; sfxAbduct(); }
+          } else {
+            a.scare = lerp(a.scare, 0, clamp(dt * 7, 0, 1));
+            a.scareHold = 0;
+            a.cried = false;
+            if (a.attacking) {
+              a.x += a.attackVx * dt;
+              a.y += a.attackVy * dt;
+              a.attackVy += 900 * dt;
+              a.hop = 0;
+              const ubox = ufoHitbox();
+              if (a.x > ubox.x && a.x < ubox.x + ubox.w && a.y > ubox.y && a.y < ubox.y + ubox.h) {
+                bumpEnergy(18, a.x, a.y);
+                a.attacking = false;
+                a.y = WALK_Y;
+                a.attackCD = rand(2, 4);
+              } else if (a.y >= WALK_Y) {
+                a.y = WALK_Y;
+                a.attacking = false;
+                a.attackCD = rand(2, 4);
+              }
+              a.walk += dt * (a.speed / 26);
+            } else {
+              if (a.attackCD > 0) a.attackCD -= dt;
+              const hs = a.hopScale;
+              a.walk += dt * (a.speed / 26);
+              const hopT = a.walk % 1;
+              const airEnd = Math.min(0.28 + 0.44 * hs, 0.95);
+              const airborne = hopT > 0.28 && hopT < airEnd;
+              const hopSpeed = airborne ? 1.35 * hs : 0.35;
+              a.hop = airborne ? Math.sin((hopT - 0.28) / (airEnd - 0.28) * Math.PI) : 0;
+              a.x += a.dir * a.speed * hopSpeed * dt;
+              if (a.attackCD <= 0) {
+                const dx = u.x - a.x;
+                const anyAttacking = G.animals.some((o) => o !== a && o.type === "frog" && o.attacking);
+                if (Math.abs(dx) < 500 && !anyAttacking) {
+                  a.attacking = true;
+                  a.dir = dx > 0 ? 1 : -1;
+                  const dist = Math.hypot(dx, u.y - a.y);
+                  const t = Math.max(0.5, dist / 600);
+                  a.attackVx = dx / t;
+                  a.attackVy = (u.y - a.y) / t - 0.5 * 900 * t;
+                }
+              }
+              if (a.x < -80) a.x = W + 80;
+              if (a.x > W + 80) a.x = -80;
+            }
+          }
+          return;
+        }
         const inLight = G.ufo.beam && caught;
         if (inLight && G.state === "play") {
           if (a.type === "frog" && a.hopScale > 1.0) {
