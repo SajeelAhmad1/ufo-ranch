@@ -6,15 +6,15 @@
   const W = canvas.width;
   const H = canvas.height;
 
-  const WALK_Y = 638;
-  const UFO_Y = 355;
-  const PAD_X = 1278;
+  const WALK_Y = 818;
+  const UFO_Y = 290;
+  const PAD_X = 1288;
   const TARGET = 10;
-  const CRATE_TARGET = 3;
+  const UFO_W = 186;
+  const UFO_H = 128;
 
   const fuelBar = document.getElementById("fuel-bar");
   const energyBar = document.getElementById("energy-bar");
-  const crateStat = document.getElementById("crate-stat");
   const scoreStat = document.getElementById("score-stat");
   const goalStat = document.getElementById("goal-stat");
   const bannerEl = document.getElementById("banner");
@@ -66,6 +66,49 @@
     setTimeout(() => beep({ freq: 520, dur: 0.4, type: "triangle", gain: 0.07, slide: 260 }), 180);
   };
   const sfxBump = () => beep({ freq: 140, dur: 0.16, type: "square", gain: 0.06, slide: -70 });
+  const sfxCapsule = () => {
+    beep({ freq: 520, dur: 0.1, type: "sine", gain: 0.06, slide: 200 });
+    setTimeout(() => beep({ freq: 880, dur: 0.16, type: "triangle", gain: 0.07 }), 70);
+  };
+
+  function noiseBurst({ dur = 0.16, gain = 0.07, freq = 400, q = 2.5, type = "bandpass" }) {
+    const ac = ensureAudio();
+    const n = ac.createBuffer(1, Math.max(1, (ac.sampleRate * dur) | 0), ac.sampleRate);
+    const data = n.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    const src = ac.createBufferSource();
+    src.buffer = n;
+    const f = ac.createBiquadFilter();
+    f.type = type;
+    f.frequency.value = freq;
+    f.Q.value = q;
+    const g = ac.createGain();
+    const t0 = ac.currentTime;
+    g.gain.setValueAtTime(gain, t0);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    src.connect(f).connect(g).connect(ac.destination);
+    src.start();
+  }
+
+  function sfxAnimal(type) {
+    if (type === "duck") {
+      beep({ freq: 290, dur: 0.11, type: "sawtooth", gain: 0.055, slide: -90 });
+      noiseBurst({ dur: 0.13, gain: 0.07, freq: 480, q: 5 });
+      setTimeout(() => beep({ freq: 250, dur: 0.1, type: "sawtooth", gain: 0.04, slide: -50 }), 120);
+    } else if (type === "duckling") {
+      beep({ freq: 430, dur: 0.09, type: "sawtooth", gain: 0.05, slide: -70 });
+      noiseBurst({ dur: 0.1, gain: 0.05, freq: 700, q: 6 });
+    } else if (type === "croc") {
+      beep({ freq: 78, dur: 0.32, type: "sawtooth", gain: 0.07, slide: -18 });
+      noiseBurst({ dur: 0.28, gain: 0.06, freq: 140, q: 0.9, type: "lowpass" });
+    } else if (type === "turtle") {
+      beep({ freq: 760, dur: 0.09, type: "sine", gain: 0.05, slide: -220 });
+      beep({ freq: 520, dur: 0.14, type: "triangle", gain: 0.04, slide: -80 });
+    } else {
+      beep({ freq: 205, dur: 0.07, type: "square", gain: 0.05, slide: -35 });
+      setTimeout(() => beep({ freq: 155, dur: 0.16, type: "square", gain: 0.055, slide: -25 }), 85);
+    }
+  }
 
   let engine = null;
   function setEngine(on, intensity = 1) {
@@ -126,7 +169,6 @@
     duckling: "assets/duckling.jpg",
     turtle: "assets/turtle.jpg",
     frog: "assets/frog.jpg",
-    crate: "assets/crate.jpg",
   };
 
   const sprites = Object.create(null);
@@ -323,15 +365,15 @@
       last: 0,
       score: 0,
       collected: 0,
-      crates: 0,
       fuel: 100,
       energy: 100,
       ufo: { x: 620, y: UFO_Y, vx: 0, vy: 0, bob: 0, beam: false, landing: false, flash: 0, tilt: 0, grounded: false, armed: false },
       animals: [],
-      cratesOnGround: [],
       particles: [],
       floaters: [],
       sparkles: [],
+      capsule: null,
+      capsuleWait: rand(1.4, 3.2),
       message: "",
       messageT: 0,
       completeT: 0,
@@ -355,6 +397,9 @@
       lift: 0,
       wiggle: 0,
       hop: 0,
+      scare: 0,
+      scareHold: 0,
+      cried: false,
     });
   }
 
@@ -369,11 +414,34 @@
       ["duck", 1080],
       ["turtle", 360],
     ].forEach(([t, x]) => spawnAnimal(t, x));
-    G.cratesOnGround = [
-      { x: 210, y: WALK_Y - 6, taken: false },
-      { x: 700, y: WALK_Y - 6, taken: false },
-      { x: 1000, y: WALK_Y - 6, taken: false },
+  }
+
+  function spawnCapsule() {
+    const spots = [
+      { x: rand(380, 520), y: rand(200, 280) },
+      { x: rand(700, 900), y: rand(220, 340) },
+      { x: rand(980, 1180), y: rand(195, 270) },
+      { x: rand(430, 620), y: rand(360, 470) },
+      { x: 1100 + rand(-40, 40), y: 230 + rand(-20, 30) },
     ];
+    const p = pick(spots);
+    G.capsule = { x: p.x, y: p.y, bob: rand(0, Math.PI * 2) };
+  }
+
+  function updateCapsules(dt) {
+    if (G.state !== "play") return;
+    const lowFuel = G.fuel <= 20 && G.fuel >= 5;
+    if (!lowFuel) {
+      if (G.fuel < 5) G.capsule = null;
+      return;
+    }
+    if (G.capsule) return;
+    G.capsuleWait -= dt;
+    if (G.capsuleWait <= 0) {
+      spawnCapsule();
+      G.capsuleWait = rand(4, 9);
+      banner("Energy capsule incoming!");
+    }
   }
 
   function banner(text) {
@@ -412,7 +480,7 @@
       top,
       bot,
       topW: 48,
-      botW: 168,
+      botW: 120,
     };
   }
 
@@ -431,17 +499,17 @@
 
   function ufoHitbox() {
     const u = G.ufo;
-    return { x: u.x - 95, y: u.y - 148, w: 190, h: 140 };
+    return { x: u.x - 70, y: u.y - 108, w: 140, h: 100 };
   }
 
   function sceneryBoxes() {
     const boxes = [
-      { x: 22, y: 448, w: 248, h: 195, name: "lab" },
-      { x: 1455, y: 418, w: 145, h: 225, name: "tree" },
-      { x: 0, y: WALK_Y + 2, w: W, h: 280, name: "ground" },
+      { x: 28, y: WALK_Y - 168, w: 210, h: 168, name: "lab" },
+      { x: 1488, y: WALK_Y - 175, w: 110, h: 175, name: "tree" },
+      { x: 0, y: WALK_Y + 2, w: W, h: 120, name: "ground" },
     ];
     if (!(G.collected >= TARGET && G.state !== "play")) {
-      boxes.push({ x: 1185, y: 548, w: 190, h: 100, name: "pad" });
+      boxes.push({ x: 1228, y: WALK_Y - 62, w: 128, h: 62, name: "pad" });
     }
     return boxes;
   }
@@ -510,13 +578,6 @@
       a.x += a.dir * 18;
       bumpEnergy(18, a.x, a.y - 30);
     });
-    G.cratesOnGround.forEach((c) => {
-      if (c.taken) return;
-      const box = { x: c.x - 26, y: c.y - 52, w: 52, h: 52 };
-      if (!aabb(ufoHitbox(), box)) return;
-      separateUFO(box);
-      bumpEnergy(12, c.x, c.y - 20);
-    });
   }
 
   function flyUFO(dt) {
@@ -557,13 +618,13 @@
     }
 
     u.x = clamp(u.x + u.vx * dt, 120, 1480);
-    u.y = clamp(u.y + u.vy * dt, 168, WALK_Y + 24);
+    u.y = clamp(u.y + u.vy * dt, 140, WALK_Y + 24);
     u.tilt = lerp(u.tilt, ax * 0.12, clamp(dt * 8, 0, 1));
     const thrusting = up || Math.abs(ax) > 0;
     G.fuel = clamp(G.fuel - (thrusting ? 1.6 : 0.1) * dt, 0, 100);
     resolveCollisions();
     u.x = clamp(u.x, 120, 1480);
-    u.y = clamp(u.y, 168, WALK_Y + 24);
+    u.y = clamp(u.y, 140, WALK_Y + 24);
   }
 
   function showOverlay(title, sub, action) {
@@ -605,7 +666,6 @@
     energyBar.style.width = G.energy + "%";
     fuelBar.className = G.fuel < 22 ? "crit" : G.fuel < 40 ? "low" : "";
     energyBar.className = G.energy < 18 ? "low" : "";
-    crateStat.textContent = G.crates + " / " + CRATE_TARGET;
     scoreStat.textContent = String(G.score);
     goalStat.textContent = G.collected + " / " + TARGET;
     if (G.messageT <= 0) bannerEl.classList.add("hidden");
@@ -646,7 +706,7 @@
         showOverlay("GAME OVER", "You ran out of fuel.", "TRY AGAIN");
       }
       if (G.energy <= 0 && G.state !== "fail") energyOut();
-      if (G.state === "toPad" && Math.abs(u.x - PAD_X) < 78 && u.y > WALK_Y - 155) {
+      if (G.state === "toPad" && Math.abs(u.x - PAD_X) < 64 && u.y > WALK_Y - 120) {
         G.state = "landing";
         u.landing = true;
         u.beam = false;
@@ -656,14 +716,14 @@
     }
 
     if (G.state === "landing") {
-      u.y = lerp(u.y, WALK_Y - 108, clamp(dt * 1.5, 0, 1));
+      u.y = lerp(u.y, WALK_Y - 78, clamp(dt * 1.5, 0, 1));
       u.x = lerp(u.x, PAD_X, clamp(dt * 3, 0, 1));
-      if (u.y > WALK_Y - 118) {
+      if (u.y > WALK_Y - 88) {
         G.completeT += dt;
         burst(u.x, u.y + 20, "#ffe56a", 6);
         if (G.completeT > 0.9) {
           G.state = "complete";
-          showOverlay("LEVEL COMPLETE!", `Score ${G.score}  ·  Animals ${G.collected}  ·  Crates ${G.crates}/${CRATE_TARGET}`, "PLAY AGAIN");
+          showOverlay("LEVEL COMPLETE!", `Score ${G.score}  ·  Animals ${G.collected}`, "PLAY AGAIN");
         }
       }
     }
@@ -695,24 +755,42 @@
       const caught = inBeam(a.x, a.y - def.h * 0.35, def.w * 0.28);
 
       if (a.state === "walk") {
-        a.walk += dt * (a.speed / 26);
-        if (a.type === "frog") {
-          const hopT = a.walk % 1;
-          const airborne = hopT > 0.28 && hopT < 0.72;
-          const hopSpeed = airborne ? 1.35 : 0.35;
-          a.hop = airborne ? Math.sin((hopT - 0.28) / 0.44 * Math.PI) : 0;
-          a.x += a.dir * a.speed * hopSpeed * dt;
+        const inLight = G.ufo.beam && caught;
+        if (inLight && G.state === "play") {
+          a.scare = 1;
+          a.scareHold += dt;
+          if (!a.cried) {
+            a.cried = true;
+            sfxAnimal(a.type);
+          }
+          if (a.scareHold > 0.28) {
+            a.state = "lift";
+            sfxAbduct();
+          }
         } else {
-          a.x += a.dir * a.speed * dt;
-        }
-        if (a.x < 150) { a.x = 150; a.dir = 1; }
-        if (a.x > 1160) { a.x = 1160; a.dir = -1; }
-        if (Math.random() < dt * 0.035) a.dir *= -1;
-        if (caught && G.state === "play") {
-          a.state = "lift";
-          sfxAbduct();
+          a.scare = lerp(a.scare, 0, clamp(dt * 7, 0, 1));
+          a.scareHold = 0;
+          a.cried = false;
+          a.walk += dt * (a.speed / 26);
+          if (a.type === "frog") {
+            const hopT = a.walk % 1;
+            const airborne = hopT > 0.28 && hopT < 0.72;
+            const hopSpeed = airborne ? 1.35 : 0.35;
+            a.hop = airborne ? Math.sin((hopT - 0.28) / 0.44 * Math.PI) : 0;
+            a.x += a.dir * a.speed * hopSpeed * dt;
+          } else {
+            a.x += a.dir * a.speed * dt;
+          }
+          if (a.x < 150) { a.x = 150; a.dir = 1; }
+          if (a.x > 1160) { a.x = 1160; a.dir = -1; }
+          if (Math.random() < dt * 0.035) a.dir *= -1;
         }
       } else if (a.state === "lift") {
+        a.scare = 1;
+        if (!a.cried) {
+          a.cried = true;
+          sfxAnimal(a.type);
+        }
         a.lift += dt * 1.35;
         a.y -= 220 * dt;
         a.x = lerp(a.x, u.x, clamp(dt * 5, 0, 1));
@@ -736,17 +814,20 @@
     });
     G.animals = G.animals.filter((a) => a.state !== "gone");
 
-    G.cratesOnGround.forEach((c) => {
-      if (c.taken) return;
-      if (inBeam(c.x, c.y, 22) && G.state === "play") {
-        c.taken = true;
-        G.crates += 1;
-        G.score += 50;
-        addFloater(c.x, c.y - 50, "+50");
-        burst(c.x, c.y, "#d7a35a", 12);
-        sfxScore();
+    updateCapsules(dt);
+
+    if (G.capsule) {
+      G.capsule.bob += dt * 3.2;
+      const box = { x: G.capsule.x - 24, y: G.capsule.y - 30, w: 48, h: 52 };
+      if (aabb(ufoHitbox(), box)) {
+        G.energy = 100;
+        addFloater(G.capsule.x, G.capsule.y - 36, "ENERGY FULL");
+        burst(G.capsule.x, G.capsule.y, "#7CFF6A", 22);
+        sfxCapsule();
+        G.capsule = null;
+        G.capsuleWait = rand(3.5, 8);
       }
-    });
+    }
 
     G.particles = G.particles.filter((p) => {
       p.life -= dt;
@@ -832,9 +913,10 @@
       drawLeg(22, -26, cycle + Math.PI, 30, "#2f9a3a", "#247a2c", 15, 7);
       drawLeg(-18, -24, cycle + Math.PI, 26, "#3aaa32", "#2f8f28", 13, 6);
       drawLeg(50, -24, cycle, 27, "#3aaa32", "#2f8f28", 14, 6);
-      ctx.restore();
-      drawSpriteCrop(img, a.x, y + 10, def.w, def.h, a.dir, tilt, 0.22);
-      return;
+    ctx.restore();
+    drawSpriteCrop(img, a.x, y + 10, def.w, def.h, a.dir, tilt, 0.22);
+    drawWorriedFace(a, def, y + 10);
+    return;
     }
 
     if (a.type === "duck" || a.type === "duckling") {
@@ -843,6 +925,7 @@
       drawLeg(10 * s, -18 * s, cycle + Math.PI, 16 * s, "#ff9a2a", "#ff9a2a", 8 * s, 4 * s);
       ctx.restore();
       drawSpriteCrop(img, a.x, y + 8 * s, def.w, def.h, a.dir, tilt, 0.2);
+      drawWorriedFace(a, def, y + 8 * s);
       return;
     }
 
@@ -853,6 +936,7 @@
       drawLeg(24, -14, cycle, 14, "#4ec44a", "#2f8f28", 9, 5);
       ctx.restore();
       drawSpriteCrop(img, a.x, y + 8, def.w, def.h, a.dir, tilt * 0.6, 0.18);
+      drawWorriedFace(a, def, y + 8);
       return;
     }
 
@@ -871,11 +955,143 @@
       strokeFillEllipse(22 + kick * 10, -2 + kick * 8, 11, 6, "#3aaa32", "#1b2430");
       ctx.restore();
       drawSpriteCrop(img, a.x, y + 6, def.w, def.h, a.dir, tilt, 0.16);
+      drawWorriedFace(a, def, y + 6);
       return;
     }
 
     ctx.restore();
     drawSprite(img, a.x, y, def.w, def.h, a.dir, tilt);
+    drawWorriedFace(a, def, y);
+  }
+
+  function drawWorriedFace(a, def, y) {
+    if (!a.scare || a.scare < 0.15) return;
+    const s = a.scare;
+    const head = {
+      croc: { x: 48, y: -def.h + 36, r: 13, gap: 22 },
+      duck: { x: 28, y: -def.h + 28, r: 11, gap: 16 },
+      duckling: { x: 18, y: -def.h + 22, r: 8, gap: 12 },
+      turtle: { x: 32, y: -def.h + 34, r: 10, gap: 16 },
+      frog: { x: 0, y: -def.h + 26, r: 13, gap: 22 },
+    }[a.type] || { x: 20, y: -def.h + 28, r: 10, gap: 16 };
+    ctx.save();
+    ctx.translate(a.x, y);
+    ctx.scale(a.dir < 0 ? -1 : 1, 1);
+    ctx.globalAlpha = s;
+    const shake = Math.sin(G.t * 28) * 1.2;
+    [-1, 1].forEach((side) => {
+      const ex = head.x + side * head.gap * 0.5 + (a.type === "frog" ? side * head.gap * 0.5 : 0);
+      const ey = head.y + shake;
+      const rr = head.r * (1.15 + s * 0.45);
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.ellipse(ex, ey, rr, rr * 1.15, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#1b2430";
+      ctx.lineWidth = 2.2;
+      ctx.stroke();
+      ctx.fillStyle = "#1b2430";
+      ctx.beginPath();
+      ctx.arc(ex + 1, ey - rr * 0.35, rr * 0.32, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#1b2430";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(ex, ey - rr * 1.15, rr * 0.55, Math.PI * 1.15, Math.PI * 1.85);
+      ctx.stroke();
+    });
+    ctx.strokeStyle = "#1b2430";
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.arc(head.x + (a.type === "frog" ? 0 : 4), head.y + head.r + 14, 6, Math.PI + 0.25, -0.25);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawNaturalGround() {
+    const gy = WALK_Y;
+    for (let x = -8; x < W + 20; x += 7) {
+      const h = 10 + ((x * 13) % 11);
+      const lean = ((x * 7) % 5) - 2;
+      ctx.strokeStyle = (x * 3) % 2 === 0 ? "#7ed14a" : "#5aaa32";
+      ctx.lineWidth = 2.2;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(x, gy + 3);
+      ctx.quadraticCurveTo(x + lean, gy - h * 0.45, x + lean * 0.4, gy - h);
+      ctx.stroke();
+    }
+    ctx.fillStyle = "#6fbf3a";
+    ctx.beginPath();
+    ctx.moveTo(0, gy + 8);
+    for (let x = 0; x <= W; x += 18) {
+      ctx.quadraticCurveTo(x + 9, gy - 6 - ((x * 5) % 7), x + 18, gy + 6);
+    }
+    ctx.lineTo(W, gy + 18);
+    ctx.lineTo(0, gy + 18);
+    ctx.closePath();
+    ctx.fill();
+
+    const pebbles = [
+      [70, 28, 16, 9], [190, 42, 11, 7], [340, 22, 14, 8],
+      [520, 48, 18, 10], [710, 30, 12, 7], [880, 44, 15, 8],
+      [1040, 24, 13, 7], [1210, 40, 17, 9], [1380, 32, 12, 7], [1510, 50, 14, 8],
+    ];
+    pebbles.forEach(([x, oy, rx, ry], i) => {
+      ctx.fillStyle = i % 2 ? "#7a6a62" : "#8b7d74";
+      ctx.beginPath();
+      ctx.ellipse(x, gy + oy, rx, ry, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,0.18)";
+      ctx.beginPath();
+      ctx.ellipse(x - rx * 0.3, gy + oy - ry * 0.25, rx * 0.35, ry * 0.28, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.fillStyle = "rgba(90, 40, 16, 0.22)";
+    for (let i = 0; i < 18; i++) {
+      const x = (i * 97 + 40) % W;
+      const y = gy + 18 + (i * 17) % 46;
+      ctx.beginPath();
+      ctx.ellipse(x, y, 22, 6, 0.1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.strokeStyle = "rgba(90, 42, 18, 0.28)";
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < 8; i++) {
+      const x = 80 + i * 190;
+      ctx.beginPath();
+      ctx.moveTo(x, gy + 14);
+      ctx.quadraticCurveTo(x + 18, gy + 34, x - 8, gy + 58);
+      ctx.stroke();
+    }
+  }
+
+  function drawCapsule(c) {
+    const y = c.y + Math.sin(c.bob) * 8;
+    ctx.save();
+    ctx.translate(c.x, y);
+    const glow = 0.35 + Math.sin(G.t * 8) * 0.12;
+    ctx.fillStyle = `rgba(80, 255, 160, ${glow})`;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 28, 34, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#e8fff4";
+    ctx.beginPath();
+    ctx.roundRect(-12, -20, 24, 40, 10);
+    ctx.fill();
+    ctx.strokeStyle = "#2fb86a";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.fillStyle = "#7CFF4A";
+    ctx.beginPath();
+    ctx.roundRect(-8, -14, 16, 28, 7);
+    ctx.fill();
+    ctx.fillStyle = "#fff64a";
+    ctx.font = "900 16px Trebuchet MS, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("⚡", 0, 1);
+    ctx.restore();
   }
 
   function drawBeam() {
@@ -919,15 +1135,18 @@
   }
 
   function render() {
-    if (sprites.bg) ctx.drawImage(sprites.bg, 0, 0, W, H);
-    else {
+    if (sprites.bg) {
+      const img = sprites.bg;
+      const cut = img.height * 0.735;
+      ctx.drawImage(img, 0, 0, img.width, cut, 0, 0, W, WALK_Y + 4);
+      ctx.drawImage(img, 0, cut, img.width, img.height - cut, 0, WALK_Y + 2, W, H - WALK_Y);
+    } else {
       ctx.fillStyle = "#5ec8ff";
       ctx.fillRect(0, 0, W, H);
     }
+    drawNaturalGround();
 
-    G.cratesOnGround.forEach((c) => {
-      if (!c.taken) drawSprite(sprites.crate, c.x, c.y, 52, 52, 1, 0);
-    });
+    if (G.capsule) drawCapsule(G.capsule);
 
     const walking = G.animals.filter((a) => a.state === "walk");
     const lifting = G.animals.filter((a) => a.state === "lift");
@@ -938,6 +1157,7 @@
     lifting.forEach((a) => {
       const def = ANIMAL_DEFS[a.type];
       drawSprite(sprites[def.img], a.x, a.y, def.w * 0.92, def.h * 0.92, a.dir, -0.45 + Math.sin(a.wiggle) * 0.25);
+      drawWorriedFace(a, def, a.y);
     });
 
     const bob = Math.sin(G.ufo.bob * 3.1) * 8;
@@ -945,7 +1165,7 @@
       ctx.save();
       ctx.filter = "brightness(1.7) saturate(1.4) hue-rotate(-25deg)";
     }
-    drawSprite(sprites.ufo, G.ufo.x, G.ufo.y + bob, 250, 176, 1, G.ufo.tilt || 0);
+    drawSprite(sprites.ufo, G.ufo.x, G.ufo.y + bob, UFO_W, UFO_H, 1, G.ufo.tilt || 0);
     if (G.ufo.flash > 0) ctx.restore();
 
     G.particles.forEach((p) => {
