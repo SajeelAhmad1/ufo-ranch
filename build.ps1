@@ -1,3 +1,9 @@
+$fonts   = Get-Content "css\fonts.css"   -Raw -Encoding UTF8
+$css     = Get-Content "css\game.css"    -Raw -Encoding UTF8
+$sprites = Get-Content "js\sprites_b64.js" -Raw -Encoding UTF8
+$game    = Get-Content "js\game.js"      -Raw -Encoding UTF8
+
+$html = @"
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,8 +11,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <meta name="screen-orientation" content="landscape" />
   <title>UFO Ranch — Abduct &amp; Fly!</title>
-  <link rel="stylesheet" href="css/fonts.css" />
-  <link rel="stylesheet" href="css/game.css" />
+  <style>
+$fonts
+$css
+  </style>
 </head>
 <body>
   <div id="frame">
@@ -56,14 +64,16 @@
         </div>
       </div>
     </div>
-    <div id="hint">
-      <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrows fly (starts gravity)</span>
-      <span><kbd>Space</kbd> beam — UFO almost stops</span>
-      <span><kbd>P</kbd> pause</span>
-    </div>
-
   </div>
-  <script src="js/sprites_b64.js"></script>
-  <script src="js/game.js"></script>
+  <script>
+$sprites
+  </script>
+  <script>
+$game
+  </script>
 </body>
 </html>
+"@
+
+[System.IO.File]::WriteAllText("$PWD\index-final.html", $html, [System.Text.Encoding]::UTF8)
+Write-Host "Done. Size: $([math]::Round((Get-Item 'index-final.html').Length / 1KB)) KB"

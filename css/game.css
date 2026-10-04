@@ -15,17 +15,15 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 12px;
+  gap: 0;
+  padding: 0;
 }
 
 #stage {
   position: relative;
-  width: min(100vw - 24px, calc((100vh - 64px) * 16 / 9));
-  height: min(100vh - 64px, calc((100vw - 24px) * 9 / 16));
-  border-radius: 18px;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
-  box-shadow: 0 0 0 4px #1c3a5a, 0 18px 50px rgba(0, 0, 0, 0.55);
 }
 
 #game {
@@ -365,13 +363,20 @@ html, body {
   text-transform: uppercase;
 }
 
-#hint {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  justify-content: center;
-  color: #9ec4e0;
-  font-size: 13px;
+#hint { display: none; }
+
+/* force landscape on portrait mobile by rotating the whole page */
+@media (max-width: 926px) and (orientation: portrait) {
+  body {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vh;
+    height: 100vw;
+    transform-origin: top left;
+    transform: rotate(90deg) translateX(0) translateY(-100%);
+    overflow: hidden;
+  }
 }
 
 kbd {
@@ -386,24 +391,75 @@ kbd {
   font-size: 12px;
 }
 
-#dev-bar {
+#beam-btn {
+  position: absolute;
+  bottom: 5%;
+  right: 4%;
+  z-index: 10;
+  width: 11%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 3px solid rgba(122,207,255,0.7);
+  background: radial-gradient(circle at 40% 32%, rgba(120,230,255,0.92), rgba(14,80,180,0.88));
+  color: #fff;
+  font-family: "Lilita One", cursive;
+  font-size: 1.4vw;
+  line-height: 1.25;
+  letter-spacing: 0.04em;
+  box-shadow: 0 0 0 3px rgba(10,60,120,0.5), 0 0 22px rgba(80,200,255,0.45), inset 0 2px 0 rgba(255,255,255,0.25);
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: #ff9a2a;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+  justify-content: center;
+  text-align: center;
 }
 
-#dev-bar button {
-  padding: 3px 10px;
-  border-radius: 6px;
-  border: 1px solid #ff9a2a;
-  background: rgba(255,154,42,0.12);
-  color: #ff9a2a;
-  font: 700 11px "Trebuchet MS", sans-serif;
-  cursor: pointer;
+#beam-btn:active {
+  transform: scale(0.93);
+  box-shadow: 0 0 0 3px rgba(10,60,120,0.5), 0 0 36px rgba(80,200,255,0.75), inset 0 2px 0 rgba(255,255,255,0.25);
+  background: radial-gradient(circle at 40% 32%, rgba(180,245,255,0.96), rgba(30,120,230,0.92));
 }
 
-#dev-bar button:hover { background: rgba(255,154,42,0.28); }
+#joy-pad, #beam-btn { visibility: hidden; }
+#stage.playing #joy-pad,
+#stage.playing #beam-btn { visibility: visible; }
+
+#joy-pad {
+  position: absolute;
+  bottom: 5%;
+  left: 4%;
+  z-index: 10;
+  width: 11%;
+  aspect-ratio: 1;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+
+#joy-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.06), rgba(10,60,140,0.55));
+  border: 3px solid rgba(122,207,255,0.7);
+  box-shadow: 0 0 0 3px rgba(10,60,120,0.5), 0 0 22px rgba(80,200,255,0.35), inset 0 2px 0 rgba(255,255,255,0.12);
+}
+
+#joy-knob {
+  position: absolute;
+  width: 46%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle at 38% 32%, rgba(180,240,255,0.95), rgba(20,110,210,0.9));
+  border: 2px solid rgba(160,230,255,0.6);
+  box-shadow: 0 0 12px rgba(80,200,255,0.5), inset 0 2px 0 rgba(255,255,255,0.35);
+  transition: transform 0.05s ease-out;
+  pointer-events: none;
+}

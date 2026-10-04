@@ -36,9 +36,18 @@
   const ovBtn = document.getElementById("ov-btn");
   const pauseBtn = document.getElementById("pause-btn");
 
+  const beamBtn = document.getElementById("beam-btn");
+  const joyPad  = document.getElementById("joy-pad");
+  const joyKnob = document.getElementById("joy-knob");
+  const stage   = document.getElementById("stage");
+  const isTouchDevice = navigator.maxTouchPoints > 0;
+
   const keys = Object.create(null);
   let pointerBeam = false;
   let beamLock = 0;
+
+  // virtual joystick state
+  const joy = { active: false, pid: -1, dx: 0, dy: 0 };
 
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const lerp = (a, b, t) => a + (b - a) * t;
@@ -157,7 +166,8 @@
 
   function movePressed() {
     return !!(keys.ArrowLeft || keys.a || keys.A || keys.ArrowRight || keys.d || keys.D ||
-      keys.ArrowUp || keys.w || keys.W || keys.ArrowDown || keys.s || keys.S);
+      keys.ArrowUp || keys.w || keys.W || keys.ArrowDown || keys.s || keys.S ||
+      (joy.active && (Math.abs(joy.dx) > 0.1 || Math.abs(joy.dy) > 0.1)));
   }
 
   const ANIMAL_DEFS = {
@@ -612,6 +622,11 @@
     if (keys.ArrowRight || keys.d || keys.D) ax += 1;
     u.grounded = false;
 
+    // blend keyboard + joystick
+    ax = clamp(ax + joy.dx, -1, 1);
+    const pUp   = joy.dy < 0 ? -joy.dy : 0;
+    const pDown = joy.dy > 0 ?  joy.dy : 0;
+
     if (beaming) {
       u.vx = lerp(u.vx, 0, clamp(dt * 10, 0, 1));
       u.vy = lerp(u.vy, 0, clamp(dt * 10, 0, 1));
@@ -621,8 +636,8 @@
     } else {
       u.vx = lerp(u.vx, ax * 150, clamp(dt * 6, 0, 1));
       u.vy += 420 * dt;
-      if (up) u.vy -= 780 * dt;
-      if (down) u.vy += 260 * dt;
+      if (up || pUp > 0) u.vy -= 780 * (up ? 1 : pUp) * dt;
+      if (down || pDown > 0) u.vy += 260 * (down ? 1 : pDown) * dt;
       u.vy = clamp(u.vy, -240, 380);
       const spd = Math.hypot(u.vx, u.vy);
       setEngine(spd > 12 || movePressed(), clamp(spd / 280, 0.25, 1));
@@ -633,7 +648,7 @@
     u.x = clamp(newX, 120, 1480);
     u.y = clamp(newY, 140, WALK_Y + 24);
     u.tilt = lerp(u.tilt, ax * 0.12, clamp(dt * 8, 0, 1));
-    const thrusting = up || Math.abs(ax) > 0;
+    const thrusting = up || pUp > 0 || Math.abs(ax) > 0.05;
     G.fuel = clamp(G.fuel - (thrusting ? 1.6 : 0.1) * dt, 0, 100);
     resolveCollisions();
     if (newX < 120 || newX > 1480) { bumpEnergy(12, u.x, u.y); u.vx *= -0.3; }
@@ -699,6 +714,7 @@
     beamLock = 0.4;
     pointerBeam = false;
     hideOverlay();
+    stage.classList.add("playing");
     banner(LEVELS[currentLevel].banner);
     beep({ freq: 660, dur: 0.1, type: "sine", gain: 0.07 });
   }
@@ -1400,7 +1416,6 @@
       ctx.restore();
     });
   }
-
   function loop(now) {
     const dt = G.last ? clamp((now - G.last) / 1000, 0, 0.05) : 0;
     G.last = now;
@@ -1425,38 +1440,86 @@
     if (e.code === "Space") keys.Space = false;
   });
 
+  // joystick — permanent HTML pad, bottom-left
+  function updateKnob() {
+    const maxPct = 27; // % of pad radius the knob travels
+    const tx = joy.dx * maxPct;
+    const ty = joy.dy * maxPct;
+    joyKnob.style.transform = `translate(calc(-50% + ${tx}%), calc(-50% + ${ty}%))`;
+  }
+
+  joyPad.addEventListener("pointerdown", (e) => {
+    ensureAudio();
+    if (G.state !== "play" && G.state !== "toPad" && G.state !== "birdHit") return;
+    joy.active = true;
+    joy.pid = e.pointerId;
+    joy.dx = 0;
+    joy.dy = 0;
+    if (!G.ufo.armed) G.ufo.armed = true;
+    joyPad.setPointerCapture(e.pointerId);
+    joyPad.style.cursor = "grabbing";
+  });
+  joyPad.addEventListener("pointermove", (e) => {
+    if (!joy.active || e.pointerId !== joy.pid) return;
+    const r = joyPad.getBoundingClientRect();
+    const cx = r.left + r.width  * 0.5;
+    const cy = r.top  + r.height * 0.5;
+    const rawDx = e.clientX - cx;
+    const rawDy = e.clientY - cy;
+    const dist  = Math.hypot(rawDx, rawDy);
+    const maxR  = r.width * 0.5;
+    const scale = dist > maxR ? maxR / dist : 1;
+    joy.dx = clamp((rawDx * scale) / maxR, -1, 1);
+    joy.dy = clamp((rawDy * scale) / maxR, -1, 1);
+    updateKnob();
+  });
+  function joyRelease() {
+    joy.active = false; joy.dx = 0; joy.dy = 0;
+    updateKnob();
+    joyPad.style.cursor = "grab";
+  }
+  joyPad.addEventListener("pointerup",     joyRelease);
+  joyPad.addEventListener("pointercancel", joyRelease);
+
+  // canvas right-half tap = beam
   canvas.addEventListener("pointerdown", (e) => {
     ensureAudio();
-    if (G.state === "title" || G.state === "complete" || G.state === "fail" || G.state === "gameover") {
-      startLevel(G.state === "gameover" ? 0 : undefined);
-      return;
+    if (G.state !== "play" && G.state !== "toPad" && G.state !== "birdHit") return;
+    const r = canvas.getBoundingClientRect();
+    if ((e.clientX - r.left) / r.width >= 0.5) {
+      pointerBeam = true;
+      canvas.setPointerCapture(e.pointerId);
     }
-    if (G.state === "paused") {
-      togglePause();
-      return;
-    }
-    pointerBeam = true;
-    canvas.setPointerCapture(e.pointerId);
   });
-  canvas.addEventListener("pointerup", () => { pointerBeam = false; });
+  canvas.addEventListener("pointerup",     () => { pointerBeam = false; });
   canvas.addEventListener("pointercancel", () => { pointerBeam = false; });
+
   pauseBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     ensureAudio();
-    if (G.state === "title" || G.state === "complete" || G.state === "fail" || G.state === "gameover") startLevel(G.state === "gameover" ? 0 : undefined);
-    else togglePause();
+    togglePause();
   });
+
   ovBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     ensureAudio();
-    if (G.state === "paused") togglePause();
-    else startLevel(Number(ovBtn.dataset.nextLvl) || 0);
+    if (G.state === "paused") {
+      togglePause();
+    } else if (G.state === "gameover" || ovBtn.dataset.mode === "restart") {
+      startLevel(0);
+    } else if (G.state === "complete") {
+      startLevel(Number(ovBtn.dataset.nextLvl));
+    } else if (G.state === "fail" || G.state === "birdHit") {
+      startLevel(currentLevel);
+    } else {
+      startLevel(0);
+    }
   });
 
   // accumulate score across levels (not on fail/restart)
   // totalScore is reset in startLevel when lvl === 0
 
-  window.devGoto = (lvl) => startLevel(lvl);
+  const startLabel = navigator.maxTouchPoints > 0 ? "TAP TO START" : "CLICK TO START";
 
   loadSprites()
     .then(() => {
@@ -1464,7 +1527,7 @@
       updateHUD();
       ovTitle.textContent = "UFO RANCH";
       ovSub.textContent = "Level 1 — Abduct duck, frog & tortoise, then land";
-      ovBtn.textContent = "CLICK TO START";
+      ovBtn.textContent = startLabel;
       requestAnimationFrame(loop);
     })
     .catch((err) => {
@@ -1473,7 +1536,7 @@
       updateHUD();
       ovTitle.textContent = "UFO RANCH";
       ovSub.textContent = "Level 1 — Abduct duck, frog & tortoise, then land";
-      ovBtn.textContent = "CLICK TO START";
+      ovBtn.textContent = startLabel;
       requestAnimationFrame(loop);
     });
 })();
