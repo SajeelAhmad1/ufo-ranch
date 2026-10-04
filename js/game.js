@@ -15,6 +15,7 @@
     { target: 5,  animals: [["duck", 400], ["duckling", 650], ["turtle", 900], ["frog", 280], ["frog", 1050]], frogHopScale: 3.0, banner: "Level 3 — Watch out, the frogs jump higher!" },
     { target: 3,  animals: [["frog", 300], ["frog", 700], ["frog", 1050]],                                      frogHopScale: 6.0, frogFlee: true, banner: "Level 4 — 3 frogs. They flee. Good luck!" },
     { target: 4,  animals: [["duck", 400], ["frog", 650], ["turtle", 900], ["duckling", 300]], bird: true,        banner: "Level 5 — Watch the skies! A bird is flying!" },
+    { target: 3,  animals: [["frog", 300], ["frog", 700], ["frog", 1050]],                      frogHopScale: 6.0, frogFlee: true, birds: [{ y: 260, speed: 180, waitT: 0 }, { y: 340, speed: 260, waitT: 2.5 }], banner: "Level 6 — 2 birds, 3 hyper frogs. Survive!" },
   ];
   let currentLevel = 0;
   const UFO_W = 186;
@@ -376,7 +377,7 @@
       energy: 100,
       ufo: { x: 620, y: UFO_Y, vx: 0, vy: 0, bob: 0, beam: false, landing: false, flash: 0, tilt: 0, grounded: false, armed: false },
       animals: [],
-      bird: null,
+      birds: [],
       particles: [],
       floaters: [],
       sparkles: [],
@@ -418,8 +419,13 @@
   function fillLevel() {
     G.animals = [];
     LEVELS[currentLevel].animals.forEach(([t, x]) => spawnAnimal(t, x));
-    if (LEVELS[currentLevel].bird) {
-      G.bird = { x: -60, dir: 1, waiting: false, waitT: 0 };
+    const lvl = LEVELS[currentLevel];
+    if (lvl.birds) {
+      G.birds = lvl.birds.map((b) => ({ x: -60, y: b.y, speed: b.speed, waiting: b.waitT > 0, waitT: b.waitT }));
+    } else if (lvl.bird) {
+      G.birds = [{ x: -60, y: BIRD_Y, speed: BIRD_SPEED, waiting: false, waitT: 0 }];
+    } else {
+      G.birds = [];
     }
   }
 
@@ -889,30 +895,27 @@
     });
     G.animals = G.animals.filter((a) => a.state !== "gone");
 
-    if (G.bird && (G.state === "play" || G.state === "toPad")) {
-      if (G.bird.waiting) {
-        G.bird.waitT -= dt;
-        if (G.bird.waitT <= 0) {
-          G.bird.waiting = false;
-          G.bird.x = -60;
-        }
-      } else {
-        G.bird.x += BIRD_SPEED * dt;
-        if (G.bird.x > W + 60) {
-          G.bird.waiting = true;
-          G.bird.waitT = rand(3, 6);
+    if (G.birds.length && (G.state === "play" || G.state === "toPad")) {
+      G.birds.forEach((bird) => {
+        if (bird.waiting) {
+          bird.waitT -= dt;
+          if (bird.waitT <= 0) { bird.waiting = false; bird.x = -60; }
         } else {
-          const birdBox = { x: G.bird.x - 28, y: BIRD_Y - 18, w: 56, h: 36 };
-          if (aabb(ufoHitbox(), birdBox)) {
-            G.state = "birdHit";
-            u.beam = false;
-            u.vx = 0;
-            u.vy = 0;
-            sfxBump();
-            banner("A bird hit you!");
+          bird.x += bird.speed * dt;
+          if (bird.x > W + 60) { bird.waiting = true; bird.waitT = rand(3, 6); }
+          else {
+            const birdBox = { x: bird.x - 28, y: bird.y - 18, w: 56, h: 36 };
+            if (aabb(ufoHitbox(), birdBox)) {
+              G.state = "birdHit";
+              u.beam = false;
+              u.vx = 0;
+              u.vy = 0;
+              sfxBump();
+              banner("A bird hit you!");
+            }
           }
         }
-      }
+      });
     }
 
     updateCapsules(dt);
@@ -1249,14 +1252,13 @@
 
     if (G.fuelCapsule) drawFuelCapsule(G.fuelCapsule);
 
-    if (G.bird && !G.bird.waiting) {
-      const bx = G.bird.x;
-      const by = BIRD_Y;
-      const dir = G.bird.dir;
+    G.birds.forEach((bird) => {
+      if (bird.waiting) return;
+      const bx = bird.x;
+      const by = bird.y;
       const wing = Math.sin(G.t * 14) * 10;
       ctx.save();
       ctx.translate(bx, by);
-      ctx.scale(dir < 0 ? -1 : 1, 1);
       // body
       ctx.fillStyle = "#c0392b";
       ctx.beginPath();
@@ -1285,7 +1287,7 @@
       ctx.arc(13, -3, 2, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
-    }
+    });
 
     const walking = G.animals.filter((a) => a.state === "walk");
     const lifting = G.animals.filter((a) => a.state === "lift");
