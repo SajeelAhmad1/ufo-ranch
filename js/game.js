@@ -76,11 +76,6 @@
     setTimeout(() => beep({ freq: 520, dur: 0.4, type: "triangle", gain: 0.07, slide: 260 }), 180);
   };
   const sfxBump = () => beep({ freq: 140, dur: 0.16, type: "square", gain: 0.06, slide: -70 });
-  const sfxCapsule = () => {
-    beep({ freq: 520, dur: 0.1, type: "sine", gain: 0.06, slide: 200 });
-    setTimeout(() => beep({ freq: 880, dur: 0.16, type: "triangle", gain: 0.07 }), 70);
-  };
-
   function noiseBurst({ dur = 0.16, gain = 0.07, freq = 400, q = 2.5, type = "bandpass" }) {
     const ac = ensureAudio();
     const n = ac.createBuffer(1, Math.max(1, (ac.sampleRate * dur) | 0), ac.sampleRate);
@@ -383,8 +378,6 @@
       particles: [],
       floaters: [],
       sparkles: [],
-      fuelCapsule: null,
-      fuelCapsuleWait: rand(1.2, 2.8),
       message: "",
       messageT: 0,
       completeT: 0,
@@ -435,33 +428,6 @@
   function frogHopScale() { return LEVELS[currentLevel].frogHopScale ?? 1.0; }
   function frogFlee() { return LEVELS[currentLevel].frogFlee ?? false; }
   function animalFlee() { return LEVELS[currentLevel].animalFlee ?? false; }
-
-  function spawnFuelCapsule() {
-    const spots = [
-      { x: rand(300, 500), y: rand(180, 320) },
-      { x: rand(600, 850), y: rand(200, 380) },
-      { x: rand(900, 1150), y: rand(180, 340) },
-      { x: rand(450, 700), y: rand(300, 480) },
-    ];
-    const p = pick(spots);
-    G.fuelCapsule = { x: p.x, y: p.y, bob: rand(0, Math.PI * 2) };
-  }
-
-  function updateCapsules(dt) {
-    if (G.state !== "play") return;
-    if (G.fuel > 25 || G.fuel < 5) {
-      G.fuelCapsule = null;
-      return;
-    }
-    if (!G.fuelCapsule) {
-      G.fuelCapsuleWait -= dt;
-      if (G.fuelCapsuleWait <= 0) {
-        spawnFuelCapsule();
-        G.fuelCapsuleWait = rand(3, 7);
-        banner("Fuel canister incoming!");
-      }
-    }
-  }
 
   function banner(text) {
     G.message = text;
@@ -876,12 +842,9 @@
                 a.x += a.dir * a.speed * 3.0 * dt;
               }
             }
-            if (a.x < -80) { a.x = W + 80; }
-            if (a.x > W + 80) { a.x = -80; }
-          } else {
-            if (a.x < 150) { a.x = 150; a.dir = 1; }
-            if (a.x > 1160) { a.x = 1160; a.dir = -1; }
           }
+          if (a.x < -80) { a.x = W + 80; }
+          if (a.x > W + 80) { a.x = -80; }
           if (Math.random() < dt * 0.035) a.dir *= -1;
         }
       } else if (a.state === "lift") {
@@ -932,21 +895,6 @@
           }
         }
       });
-    }
-
-    updateCapsules(dt);
-
-    if (G.fuelCapsule) {
-      G.fuelCapsule.bob += dt * 2.8;
-      const fbox = { x: G.fuelCapsule.x - 24, y: G.fuelCapsule.y - 30, w: 48, h: 52 };
-      if (aabb(ufoHitbox(), fbox)) {
-        G.fuel = 100;
-        addFloater(G.fuelCapsule.x, G.fuelCapsule.y - 36, "FUEL FULL");
-        burst(G.fuelCapsule.x, G.fuelCapsule.y, "#FFD23A", 22);
-        sfxCapsule();
-        G.fuelCapsule = null;
-        G.fuelCapsuleWait = rand(3.5, 8);
-      }
     }
 
     G.particles = G.particles.filter((p) => {
@@ -1186,34 +1134,6 @@
     }
   }
 
-  function drawFuelCapsule(c) {
-    const y = c.y + Math.sin(c.bob) * 8;
-    ctx.save();
-    ctx.translate(c.x, y);
-    const glow = 0.35 + Math.sin(G.t * 8) * 0.12;
-    ctx.fillStyle = `rgba(255, 210, 60, ${glow})`;
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 28, 34, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#fffbe8";
-    ctx.beginPath();
-    ctx.roundRect(-12, -20, 24, 40, 10);
-    ctx.fill();
-    ctx.strokeStyle = "#e08a00";
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.fillStyle = "#FFD23A";
-    ctx.beginPath();
-    ctx.roundRect(-8, -14, 16, 28, 7);
-    ctx.fill();
-    ctx.fillStyle = "#c05000";
-    ctx.font = "900 16px Trebuchet MS, sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("⛽", 0, 1);
-    ctx.restore();
-  }
-
   function drawBeam() {
     if (!G.ufo.beam) return;
     const b = beamRect();
@@ -1265,8 +1185,6 @@
       ctx.fillRect(0, 0, W, H);
     }
     drawNaturalGround();
-
-    if (G.fuelCapsule) drawFuelCapsule(G.fuelCapsule);
 
     G.birds.forEach((bird) => {
       if (bird.waiting) return;
