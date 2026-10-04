@@ -374,6 +374,8 @@
       sparkles: [],
       capsule: null,
       capsuleWait: rand(1.4, 3.2),
+      fuelCapsule: null,
+      fuelCapsuleWait: rand(1.2, 2.8),
       message: "",
       messageT: 0,
       completeT: 0,
@@ -416,6 +418,17 @@
     ].forEach(([t, x]) => spawnAnimal(t, x));
   }
 
+  function spawnFuelCapsule() {
+    const spots = [
+      { x: rand(300, 500), y: rand(180, 320) },
+      { x: rand(600, 850), y: rand(200, 380) },
+      { x: rand(900, 1150), y: rand(180, 340) },
+      { x: rand(450, 700), y: rand(300, 480) },
+    ];
+    const p = pick(spots);
+    G.fuelCapsule = { x: p.x, y: p.y, bob: rand(0, Math.PI * 2) };
+  }
+
   function spawnCapsule() {
     const spots = [
       { x: rand(380, 520), y: rand(200, 280) },
@@ -433,14 +446,28 @@
     const lowFuel = G.fuel <= 20 && G.fuel >= 5;
     if (!lowFuel) {
       if (G.fuel < 5) G.capsule = null;
-      return;
+    } else {
+      if (!G.capsule) {
+        G.capsuleWait -= dt;
+        if (G.capsuleWait <= 0) {
+          spawnCapsule();
+          G.capsuleWait = rand(4, 9);
+          banner("Energy capsule incoming!");
+        }
+      }
     }
-    if (G.capsule) return;
-    G.capsuleWait -= dt;
-    if (G.capsuleWait <= 0) {
-      spawnCapsule();
-      G.capsuleWait = rand(4, 9);
-      banner("Energy capsule incoming!");
+    const lowFuelAlert = G.fuel <= 25 && G.fuel >= 10;
+    if (!lowFuelAlert) {
+      if (G.fuel < 10) G.fuelCapsule = null;
+    } else {
+      if (!G.fuelCapsule) {
+        G.fuelCapsuleWait -= dt;
+        if (G.fuelCapsuleWait <= 0) {
+          spawnFuelCapsule();
+          G.fuelCapsuleWait = rand(3, 7);
+          banner("Fuel canister incoming!");
+        }
+      }
     }
   }
 
@@ -828,6 +855,18 @@
         G.capsuleWait = rand(3.5, 8);
       }
     }
+    if (G.fuelCapsule) {
+      G.fuelCapsule.bob += dt * 2.8;
+      const fbox = { x: G.fuelCapsule.x - 24, y: G.fuelCapsule.y - 30, w: 48, h: 52 };
+      if (aabb(ufoHitbox(), fbox)) {
+        G.fuel = 100;
+        addFloater(G.fuelCapsule.x, G.fuelCapsule.y - 36, "FUEL FULL");
+        burst(G.fuelCapsule.x, G.fuelCapsule.y, "#FFD23A", 22);
+        sfxCapsule();
+        G.fuelCapsule = null;
+        G.fuelCapsuleWait = rand(3.5, 8);
+      }
+    }
 
     G.particles = G.particles.filter((p) => {
       p.life -= dt;
@@ -1066,6 +1105,34 @@
     }
   }
 
+  function drawFuelCapsule(c) {
+    const y = c.y + Math.sin(c.bob) * 8;
+    ctx.save();
+    ctx.translate(c.x, y);
+    const glow = 0.35 + Math.sin(G.t * 8) * 0.12;
+    ctx.fillStyle = `rgba(255, 210, 60, ${glow})`;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 28, 34, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#fffbe8";
+    ctx.beginPath();
+    ctx.roundRect(-12, -20, 24, 40, 10);
+    ctx.fill();
+    ctx.strokeStyle = "#e08a00";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.fillStyle = "#FFD23A";
+    ctx.beginPath();
+    ctx.roundRect(-8, -14, 16, 28, 7);
+    ctx.fill();
+    ctx.fillStyle = "#c05000";
+    ctx.font = "900 16px Trebuchet MS, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("⛽", 0, 1);
+    ctx.restore();
+  }
+
   function drawCapsule(c) {
     const y = c.y + Math.sin(c.bob) * 8;
     ctx.save();
@@ -1147,6 +1214,7 @@
     drawNaturalGround();
 
     if (G.capsule) drawCapsule(G.capsule);
+    if (G.fuelCapsule) drawFuelCapsule(G.fuelCapsule);
 
     const walking = G.animals.filter((a) => a.state === "walk");
     const lifting = G.animals.filter((a) => a.state === "lift");
