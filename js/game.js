@@ -162,13 +162,13 @@
   };
 
   const SPRITE_SRC = {
-    bg: "assets/bg.jpg",
-    ufo: "assets/ufo.jpg",
-    croc: "assets/croc.jpg",
-    duck: "assets/duck.jpg",
-    duckling: "assets/duckling.jpg",
-    turtle: "assets/turtle.jpg",
-    frog: "assets/frog.jpg",
+    bg: SPRITE_B64.bg,
+    ufo: SPRITE_B64.ufo,
+    croc: SPRITE_B64.croc,
+    duck: SPRITE_B64.duck,
+    duckling: SPRITE_B64.duckling,
+    turtle: SPRITE_B64.turtle,
+    frog: SPRITE_B64.frog,
   };
 
   const sprites = Object.create(null);
@@ -647,7 +647,7 @@
     pointerBeam = false;
     hideOverlay();
     banner("Abduct 10 animals!");
-    sfxClick();
+    beep({ freq: 660, dur: 0.1, type: "sine", gain: 0.07 });
   }
 
   function togglePause() {
