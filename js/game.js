@@ -9,7 +9,8 @@
   const WALK_Y = 818;
   const UFO_Y = 290;
   const PAD_X = 1288;
-  const TARGET = 10;
+  const TARGET = 3;
+  const LEVEL1_POOL = ["duck", "frog", "turtle"];
   const UFO_W = 186;
   const UFO_H = 128;
 
@@ -372,8 +373,6 @@
       particles: [],
       floaters: [],
       sparkles: [],
-      capsule: null,
-      capsuleWait: rand(1.4, 3.2),
       fuelCapsule: null,
       fuelCapsuleWait: rand(1.2, 2.8),
       message: "",
@@ -407,15 +406,7 @@
 
   function fillLevel() {
     G.animals = [];
-    [
-      ["croc", 280],
-      ["duck", 470],
-      ["duckling", 545],
-      ["turtle", 780],
-      ["frog", 930],
-      ["duck", 1080],
-      ["turtle", 360],
-    ].forEach(([t, x]) => spawnAnimal(t, x));
+    [["duck", 470], ["frog", 780], ["turtle", 1000]].forEach(([t, x]) => spawnAnimal(t, x));
   }
 
   function spawnFuelCapsule() {
@@ -429,44 +420,18 @@
     G.fuelCapsule = { x: p.x, y: p.y, bob: rand(0, Math.PI * 2) };
   }
 
-  function spawnCapsule() {
-    const spots = [
-      { x: rand(380, 520), y: rand(200, 280) },
-      { x: rand(700, 900), y: rand(220, 340) },
-      { x: rand(980, 1180), y: rand(195, 270) },
-      { x: rand(430, 620), y: rand(360, 470) },
-      { x: 1100 + rand(-40, 40), y: 230 + rand(-20, 30) },
-    ];
-    const p = pick(spots);
-    G.capsule = { x: p.x, y: p.y, bob: rand(0, Math.PI * 2) };
-  }
-
   function updateCapsules(dt) {
     if (G.state !== "play") return;
-    const lowFuel = G.fuel <= 20 && G.fuel >= 5;
-    if (!lowFuel) {
-      if (G.fuel < 5) G.capsule = null;
-    } else {
-      if (!G.capsule) {
-        G.capsuleWait -= dt;
-        if (G.capsuleWait <= 0) {
-          spawnCapsule();
-          G.capsuleWait = rand(4, 9);
-          banner("Energy capsule incoming!");
-        }
-      }
+    if (G.fuel > 20 || G.fuel < 5) {
+      G.fuelCapsule = null;
+      return;
     }
-    const lowFuelAlert = G.fuel <= 25 && G.fuel >= 10;
-    if (!lowFuelAlert) {
-      if (G.fuel < 10) G.fuelCapsule = null;
-    } else {
-      if (!G.fuelCapsule) {
-        G.fuelCapsuleWait -= dt;
-        if (G.fuelCapsuleWait <= 0) {
-          spawnFuelCapsule();
-          G.fuelCapsuleWait = rand(3, 7);
-          banner("Fuel canister incoming!");
-        }
+    if (!G.fuelCapsule) {
+      G.fuelCapsuleWait -= dt;
+      if (G.fuelCapsuleWait <= 0) {
+        spawnFuelCapsule();
+        G.fuelCapsuleWait = rand(3, 7);
+        banner("Fuel canister incoming!");
       }
     }
   }
@@ -654,9 +619,21 @@
     u.y = clamp(u.y, 140, WALK_Y + 24);
   }
 
-  function showOverlay(title, sub, action) {
+  function showOverlay(title, sub, action, isComplete, fuelSnapshot) {
     ovTitle.textContent = title;
-    ovSub.textContent = sub;
+    const panel = overlay.querySelector(".panel");
+    panel.classList.toggle("panel-complete", !!isComplete);
+    if (isComplete) {
+      ovSub.innerHTML = `
+        <div class="panel-stars">⭐⭐⭐</div>
+        <div class="panel-stats">
+          <div class="stat-card"><span class="sc-icon">🐾</span><span class="sc-val">${G.collected}</span><span class="sc-lbl">Animals</span></div>
+          <div class="stat-card"><span class="sc-icon">⭐</span><span class="sc-val">${G.score}</span><span class="sc-lbl">Score</span></div>
+          <div class="stat-card"><span class="sc-icon">⛽</span><span class="sc-val">${Math.round(fuelSnapshot ?? G.fuel)}%</span><span class="sc-lbl">Fuel Left</span></div>
+        </div>`;
+    } else {
+      ovSub.textContent = sub;
+    }
     ovBtn.textContent = action;
     overlay.classList.add("show");
   }
@@ -673,7 +650,7 @@
     beamLock = 0.4;
     pointerBeam = false;
     hideOverlay();
-    banner("Abduct 10 animals!");
+    banner("Abduct 3 animals — duck, frog & tortoise!");
     beep({ freq: 660, dur: 0.1, type: "sine", gain: 0.07 });
   }
 
@@ -735,6 +712,7 @@
       if (G.energy <= 0 && G.state !== "fail") energyOut();
       if (G.state === "toPad" && Math.abs(u.x - PAD_X) < 64 && u.y > WALK_Y - 120) {
         G.state = "landing";
+        G.fuelAtLanding = G.fuel;
         u.landing = true;
         u.beam = false;
         setEngine(false);
@@ -750,7 +728,7 @@
         burst(u.x, u.y + 20, "#ffe56a", 6);
         if (G.completeT > 0.9) {
           G.state = "complete";
-          showOverlay("LEVEL COMPLETE!", `Score ${G.score}  ·  Animals ${G.collected}`, "PLAY AGAIN");
+          showOverlay("LEVEL COMPLETE!", "", "PLAY AGAIN", true, G.fuelAtLanding);
         }
       }
     }
@@ -833,8 +811,6 @@
             banner("Fly to the landing pad!");
             G.state = "toPad";
             u.beam = false;
-          } else {
-            spawnAnimal(pick(Object.keys(ANIMAL_DEFS)), a.dir > 0 ? 160 : 1140);
           }
         }
       }
@@ -843,18 +819,6 @@
 
     updateCapsules(dt);
 
-    if (G.capsule) {
-      G.capsule.bob += dt * 3.2;
-      const box = { x: G.capsule.x - 24, y: G.capsule.y - 30, w: 48, h: 52 };
-      if (aabb(ufoHitbox(), box)) {
-        G.energy = 100;
-        addFloater(G.capsule.x, G.capsule.y - 36, "ENERGY FULL");
-        burst(G.capsule.x, G.capsule.y, "#7CFF6A", 22);
-        sfxCapsule();
-        G.capsule = null;
-        G.capsuleWait = rand(3.5, 8);
-      }
-    }
     if (G.fuelCapsule) {
       G.fuelCapsule.bob += dt * 2.8;
       const fbox = { x: G.fuelCapsule.x - 24, y: G.fuelCapsule.y - 30, w: 48, h: 52 };
@@ -1133,34 +1097,6 @@
     ctx.restore();
   }
 
-  function drawCapsule(c) {
-    const y = c.y + Math.sin(c.bob) * 8;
-    ctx.save();
-    ctx.translate(c.x, y);
-    const glow = 0.35 + Math.sin(G.t * 8) * 0.12;
-    ctx.fillStyle = `rgba(80, 255, 160, ${glow})`;
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 28, 34, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#e8fff4";
-    ctx.beginPath();
-    ctx.roundRect(-12, -20, 24, 40, 10);
-    ctx.fill();
-    ctx.strokeStyle = "#2fb86a";
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.fillStyle = "#7CFF4A";
-    ctx.beginPath();
-    ctx.roundRect(-8, -14, 16, 28, 7);
-    ctx.fill();
-    ctx.fillStyle = "#fff64a";
-    ctx.font = "900 16px Trebuchet MS, sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("⚡", 0, 1);
-    ctx.restore();
-  }
-
   function drawBeam() {
     if (!G.ufo.beam) return;
     const b = beamRect();
@@ -1213,7 +1149,6 @@
     }
     drawNaturalGround();
 
-    if (G.capsule) drawCapsule(G.capsule);
     if (G.fuelCapsule) drawFuelCapsule(G.fuelCapsule);
 
     const walking = G.animals.filter((a) => a.state === "walk");
@@ -1324,12 +1259,18 @@
     .then(() => {
       fillLevel();
       updateHUD();
+      ovTitle.textContent = "UFO RANCH";
+      ovSub.textContent = "Level 1 — Green Planet · Abduct 3 animals: duck, frog & tortoise, then land";
+      ovBtn.textContent = "CLICK TO START";
       requestAnimationFrame(loop);
     })
     .catch((err) => {
       console.error(err);
       fillLevel();
       updateHUD();
+      ovTitle.textContent = "UFO RANCH";
+      ovSub.textContent = "Level 1 — Green Planet · Abduct 3 animals: duck, frog & tortoise, then land";
+      ovBtn.textContent = "CLICK TO START";
       requestAnimationFrame(loop);
     });
 })();

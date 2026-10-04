@@ -181,33 +181,36 @@ html, body {
   display: none;
   align-items: center;
   justify-content: center;
-  background: rgba(8, 24, 40, 0.38);
+  background: rgba(4, 14, 30, 0.72);
+  backdrop-filter: blur(3px);
 }
 
 #overlay.show { display: flex; }
 
 .panel {
-  width: min(520px, 70%);
+  width: min(560px, 74%);
   text-align: center;
   color: #fff;
-  padding: 22px 28px 20px;
-  border-radius: 28px;
-  background: linear-gradient(#3aa4e0, #1d7dc0);
-  box-shadow: 0 10px 0 #0f4e7a, 0 18px 40px rgba(0, 0, 0, 0.3);
-  border: 4px solid #7ecfff;
+  padding: 32px 36px 28px;
+  border-radius: 32px;
+  background: linear-gradient(160deg, #0d2a4a 0%, #071828 60%, #0a1f3a 100%);
+  box-shadow: 0 0 0 2px #1a4a7a, 0 0 40px rgba(60, 160, 255, 0.18), 0 16px 48px rgba(0, 0, 0, 0.6);
+  border: 2px solid #1e5a8a;
 }
 
 .panel h1 {
-  font-size: 36px;
+  font-size: 38px;
   font-weight: 900;
-  letter-spacing: 0.04em;
-  margin-bottom: 8px;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+  text-shadow: 0 0 24px rgba(100, 210, 255, 0.55);
 }
 
 .panel p {
-  font-size: 15px;
-  color: #e7f7ff;
-  margin-bottom: 16px;
+  font-size: 14px;
+  color: #7ab8e0;
+  margin-bottom: 20px;
+  letter-spacing: 0.03em;
 }
 
 .panel button {
@@ -216,12 +219,59 @@ html, body {
   font: 800 20px "Trebuchet MS", sans-serif;
   color: #5a3a00;
   background: linear-gradient(#ffe56a, #ffc53a);
-  padding: 14px 36px;
+  padding: 14px 44px;
   border-radius: 999px;
   box-shadow: 0 5px 0 #d49a12;
+  margin-top: 8px;
 }
 
 .panel button:active { transform: translateY(3px); box-shadow: 0 2px 0 #d49a12; }
+
+/* level-complete specific styles */
+.panel-complete h1 {
+  color: #ffe56a;
+  text-shadow: 0 0 28px rgba(255, 220, 60, 0.6), 0 2px 0 #a06800;
+}
+
+.panel-stars {
+  font-size: 34px;
+  letter-spacing: 6px;
+  margin-bottom: 18px;
+  filter: drop-shadow(0 0 8px rgba(255, 220, 60, 0.7));
+}
+
+.panel-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.stat-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(100, 180, 255, 0.18);
+  border-radius: 16px;
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.stat-card .sc-icon { font-size: 22px; line-height: 1; }
+.stat-card .sc-val {
+  font-size: 26px;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1;
+}
+.stat-card .sc-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #6aaed4;
+  text-transform: uppercase;
+}
 
 #hint {
   display: flex;
