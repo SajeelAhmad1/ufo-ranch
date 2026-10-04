@@ -363,6 +363,21 @@
     const dw = u.width * scale;
     const dh = u.height * scale;
     ictx.drawImage(u, (ic.width - dw) / 2, (ic.height - dh) / 2, dw, dh);
+
+    const ovUfo = document.getElementById("ov-ufo");
+    const ovUctx = ovUfo.getContext("2d");
+    let ovBobT = 0;
+    function drawOvUfo() {
+      ovBobT += 0.03;
+      const bob = Math.sin(ovBobT * 3.1) * 5;
+      ovUctx.clearRect(0, 0, ovUfo.width, ovUfo.height);
+      const uscale = Math.min(ovUfo.width / u.width, ovUfo.height / u.height) * 0.92;
+      const udw = u.width * uscale;
+      const udh = u.height * uscale;
+      ovUctx.drawImage(u, (ovUfo.width - udw) / 2, (ovUfo.height - udh) / 2 + bob, udw, udh);
+      requestAnimationFrame(drawOvUfo);
+    }
+    drawOvUfo();
   }
 
   function makeGame() {
@@ -625,10 +640,13 @@
     if (newY < 140) { bumpEnergy(12, u.x, u.y); u.vy *= -0.3; }
   }
 
+  let totalScore = 0;
+
   function showOverlay(title, sub, action, isComplete, fuelSnapshot, nextLvl) {
     ovTitle.textContent = title;
     const panel = overlay.querySelector(".panel");
-    panel.classList.toggle("panel-complete", !!isComplete);
+    panel.classList.remove("panel-complete", "panel-gameover");
+    if (isComplete) panel.classList.add("panel-complete");
     if (isComplete) {
       ovSub.innerHTML = `
         <div class="panel-stars">⭐⭐⭐</div>
@@ -642,6 +660,28 @@
     }
     ovBtn.textContent = action;
     ovBtn.dataset.nextLvl = nextLvl ?? "";
+    ovBtn.dataset.mode = "";
+    overlay.classList.add("show");
+  }
+
+  function showGameComplete(fuelSnapshot) {
+    totalScore += G.score;
+    G.state = "gameover";
+    ovTitle.textContent = "YOU WIN!";
+    const panel = overlay.querySelector(".panel");
+    panel.classList.remove("panel-complete");
+    panel.classList.add("panel-gameover");
+    ovSub.innerHTML = `
+      <div class="panel-stars">🏆🛸🏆</div>
+      <div class="gc-msg">All 10 levels conquered!</div>
+      <div class="panel-stats">
+        <div class="stat-card"><span class="sc-icon">⭐</span><span class="sc-val">${totalScore}</span><span class="sc-lbl">Total Score</span></div>
+        <div class="stat-card"><span class="sc-icon">🐾</span><span class="sc-val">10</span><span class="sc-lbl">Levels Done</span></div>
+        <div class="stat-card"><span class="sc-icon">⛽</span><span class="sc-val">${Math.round(fuelSnapshot ?? G.fuel)}%</span><span class="sc-lbl">Fuel Left</span></div>
+      </div>`;
+    ovBtn.textContent = "PLAY AGAIN";
+    ovBtn.dataset.nextLvl = "0";
+    ovBtn.dataset.mode = "restart";
     overlay.classList.add("show");
   }
 
@@ -650,6 +690,7 @@
   }
 
   function startLevel(lvl) {
+    if (lvl === 0) totalScore = 0;
     currentLevel = lvl ?? 0;
     G = makeGame();
     G.state = "play";
@@ -689,7 +730,7 @@
     if (G.messageT > 0) G.messageT -= dt;
     if (beamLock > 0) beamLock -= dt;
 
-    if (G.state === "title" || G.state === "complete" || G.state === "paused" || G.state === "fail") {
+    if (G.state === "title" || G.state === "complete" || G.state === "paused" || G.state === "fail" || G.state === "gameover") {
       setEngine(false);
       updateHUD();
       return;
@@ -761,7 +802,11 @@
           G.state = "complete";
           const nextLvl = currentLevel + 1;
           const hasNext = nextLvl < LEVELS.length;
-          showOverlay("LEVEL COMPLETE!", "", hasNext ? "NEXT LEVEL" : "PLAY AGAIN", true, G.fuelAtLanding, hasNext ? nextLvl : 0);
+          if (hasNext) {
+            showOverlay("LEVEL COMPLETE!", "", "NEXT LEVEL", true, G.fuelAtLanding, nextLvl);
+          } else {
+            showGameComplete(G.fuelAtLanding);
+          }
         }
       }
     }
@@ -1369,9 +1414,9 @@
     if (e.code === "Space") keys.Space = true;
     if (e.code === "Space" || e.key.startsWith("Arrow")) e.preventDefault();
     if (e.key === "p" || e.key === "P") togglePause();
-    if (e.key === "Enter" && (G.state === "title" || G.state === "complete" || G.state === "fail" || G.state === "paused")) {
+    if (e.key === "Enter" && (G.state === "title" || G.state === "complete" || G.state === "fail" || G.state === "paused" || G.state === "gameover")) {
       if (G.state === "paused") togglePause();
-      else startLevel();
+      else startLevel(G.state === "gameover" ? 0 : undefined);
     }
     ensureAudio();
   });
@@ -1382,8 +1427,8 @@
 
   canvas.addEventListener("pointerdown", (e) => {
     ensureAudio();
-    if (G.state === "title" || G.state === "complete" || G.state === "fail") {
-      startLevel();
+    if (G.state === "title" || G.state === "complete" || G.state === "fail" || G.state === "gameover") {
+      startLevel(G.state === "gameover" ? 0 : undefined);
       return;
     }
     if (G.state === "paused") {
@@ -1398,7 +1443,7 @@
   pauseBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     ensureAudio();
-    if (G.state === "title" || G.state === "complete" || G.state === "fail") startLevel();
+    if (G.state === "title" || G.state === "complete" || G.state === "fail" || G.state === "gameover") startLevel(G.state === "gameover" ? 0 : undefined);
     else togglePause();
   });
   ovBtn.addEventListener("click", (e) => {
@@ -1407,6 +1452,9 @@
     if (G.state === "paused") togglePause();
     else startLevel(Number(ovBtn.dataset.nextLvl) || 0);
   });
+
+  // accumulate score across levels (not on fail/restart)
+  // totalScore is reset in startLevel when lvl === 0
 
   window.devGoto = (lvl) => startLevel(lvl);
 
