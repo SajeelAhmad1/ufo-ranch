@@ -14,6 +14,7 @@
     { target: 5,  animals: [["duck", 300], ["duck", 700], ["frog", 500], ["frog", 950], ["turtle", 1100]],                      banner: "Level 2 — Abduct 2 ducks, 2 frogs & a tortoise!" },
     { target: 5,  animals: [["duck", 400], ["duckling", 650], ["turtle", 900], ["frog", 280], ["frog", 1050]], frogHopScale: 3.0, banner: "Level 3 — Watch out, the frogs jump higher!" },
     { target: 3,  animals: [["frog", 300], ["frog", 700], ["frog", 1050]],                                      frogHopScale: 6.0, frogFlee: true, banner: "Level 4 — 3 frogs. They flee. Good luck!" },
+    { target: 4,  animals: [["duck", 400], ["frog", 650], ["turtle", 900], ["duckling", 300]], bird: true,        banner: "Level 5 — Watch the skies! A bird is flying!" },
   ];
   let currentLevel = 0;
   const UFO_W = 186;
@@ -375,6 +376,7 @@
       energy: 100,
       ufo: { x: 620, y: UFO_Y, vx: 0, vy: 0, bob: 0, beam: false, landing: false, flash: 0, tilt: 0, grounded: false, armed: false },
       animals: [],
+      bird: null,
       particles: [],
       floaters: [],
       sparkles: [],
@@ -410,9 +412,15 @@
     });
   }
 
+  const BIRD_Y = UFO_Y;
+  const BIRD_SPEED = 210;
+
   function fillLevel() {
     G.animals = [];
     LEVELS[currentLevel].animals.forEach(([t, x]) => spawnAnimal(t, x));
+    if (LEVELS[currentLevel].bird) {
+      G.bird = { x: -60, dir: 1, waiting: false, waitT: 0 };
+    }
   }
 
   function levelTarget() { return LEVELS[currentLevel].target; }
@@ -699,6 +707,29 @@
       return;
     }
 
+    if (G.state === "birdHit") {
+      const u = G.ufo;
+      if (!G.birdHitGrounded) {
+        u.vy = clamp(u.vy + 520 * dt, 0, 520);
+        u.y += u.vy * dt;
+        u.tilt = lerp(u.tilt, 0.35, clamp(dt * 6, 0, 1));
+        if (u.y >= WALK_Y + 6) {
+          u.y = WALK_Y + 6;
+          G.birdHitGrounded = true;
+          G.birdHitPauseT = 2.0;
+          burst(u.x, u.y - 20, "#ff4444", 28);
+        }
+      } else {
+        G.birdHitPauseT -= dt;
+        if (G.birdHitPauseT <= 0) {
+          G.state = "fail";
+          showOverlay("GAME OVER", "A bird crashed into your UFO!", "TRY AGAIN");
+        }
+      }
+      updateHUD();
+      return;
+    }
+
     if (G.hitCD > 0) G.hitCD -= dt;
     if (G.ufo.flash > 0) G.ufo.flash -= dt;
 
@@ -857,6 +888,32 @@
       }
     });
     G.animals = G.animals.filter((a) => a.state !== "gone");
+
+    if (G.bird && (G.state === "play" || G.state === "toPad")) {
+      if (G.bird.waiting) {
+        G.bird.waitT -= dt;
+        if (G.bird.waitT <= 0) {
+          G.bird.waiting = false;
+          G.bird.x = -60;
+        }
+      } else {
+        G.bird.x += BIRD_SPEED * dt;
+        if (G.bird.x > W + 60) {
+          G.bird.waiting = true;
+          G.bird.waitT = rand(3, 6);
+        } else {
+          const birdBox = { x: G.bird.x - 28, y: BIRD_Y - 18, w: 56, h: 36 };
+          if (aabb(ufoHitbox(), birdBox)) {
+            G.state = "birdHit";
+            u.beam = false;
+            u.vx = 0;
+            u.vy = 0;
+            sfxBump();
+            banner("A bird hit you!");
+          }
+        }
+      }
+    }
 
     updateCapsules(dt);
 
@@ -1191,6 +1248,44 @@
     drawNaturalGround();
 
     if (G.fuelCapsule) drawFuelCapsule(G.fuelCapsule);
+
+    if (G.bird && !G.bird.waiting) {
+      const bx = G.bird.x;
+      const by = BIRD_Y;
+      const dir = G.bird.dir;
+      const wing = Math.sin(G.t * 14) * 10;
+      ctx.save();
+      ctx.translate(bx, by);
+      ctx.scale(dir < 0 ? -1 : 1, 1);
+      // body
+      ctx.fillStyle = "#c0392b";
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 22, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // wing
+      ctx.fillStyle = "#922b21";
+      ctx.beginPath();
+      ctx.ellipse(-4, -wing, 18, 7, -0.4, 0, Math.PI * 2);
+      ctx.fill();
+      // beak
+      ctx.fillStyle = "#f39c12";
+      ctx.beginPath();
+      ctx.moveTo(22, -2);
+      ctx.lineTo(34, 0);
+      ctx.lineTo(22, 4);
+      ctx.closePath();
+      ctx.fill();
+      // eye
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.arc(12, -3, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#111";
+      ctx.beginPath();
+      ctx.arc(13, -3, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
 
     const walking = G.animals.filter((a) => a.state === "walk");
     const lifting = G.animals.filter((a) => a.state === "lift");
