@@ -602,14 +602,16 @@
       setEngine(spd > 12 || movePressed(), clamp(spd / 280, 0.25, 1));
     }
 
-    u.x = clamp(u.x + u.vx * dt, 120, 1480);
-    u.y = clamp(u.y + u.vy * dt, 140, WALK_Y + 24);
+    const newX = u.x + u.vx * dt;
+    const newY = u.y + u.vy * dt;
+    u.x = clamp(newX, 120, 1480);
+    u.y = clamp(newY, 140, WALK_Y + 24);
     u.tilt = lerp(u.tilt, ax * 0.12, clamp(dt * 8, 0, 1));
     const thrusting = up || Math.abs(ax) > 0;
     G.fuel = clamp(G.fuel - (thrusting ? 1.6 : 0.1) * dt, 0, 100);
     resolveCollisions();
-    u.x = clamp(u.x, 120, 1480);
-    u.y = clamp(u.y, 140, WALK_Y + 24);
+    if (newX < 120 || newX > 1480) { bumpEnergy(12, u.x, u.y); u.vx *= -0.3; }
+    if (newY < 140) { bumpEnergy(12, u.x, u.y); u.vy *= -0.3; }
   }
 
   function showOverlay(title, sub, action, isComplete, fuelSnapshot, nextLvl) {
