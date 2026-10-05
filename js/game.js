@@ -40,10 +40,14 @@
   const joyPad  = document.getElementById("joy-pad");
   const joyKnob = document.getElementById("joy-knob");
   const stage   = document.getElementById("stage");
+  const levelLabel   = document.getElementById("level-label");
+  const levelMission = document.getElementById("level-mission");
+  const ovLevel = document.getElementById("ov-level");
   const isTouchDevice = navigator.maxTouchPoints > 0;
 
   const keys = Object.create(null);
   let pointerBeam = false;
+  let beamPid = -1;
   let beamLock = 0;
 
   // virtual joystick state
@@ -605,7 +609,7 @@
     const u = G.ufo;
     const beaming = (keys[" "] || keys.Space || pointerBeam) && G.energy > 0 && G.collected < levelTarget() && G.state === "play" && !u.landing;
     if (!u.armed) {
-      if (movePressed()) u.armed = true;
+      if (movePressed() || joy.active) u.armed = true;
       else {
         u.vx = 0;
         u.vy = 0;
@@ -627,12 +631,27 @@
     const pUp   = joy.dy < 0 ? -joy.dy : 0;
     const pDown = joy.dy > 0 ?  joy.dy : 0;
 
+    const joyMoving = joy.active && (Math.abs(joy.dx) > 0.08 || Math.abs(joy.dy) > 0.08);
+
     if (beaming) {
       u.vx = lerp(u.vx, 0, clamp(dt * 10, 0, 1));
       u.vy = lerp(u.vy, 0, clamp(dt * 10, 0, 1));
       if (Math.abs(u.vx) < 8) u.vx = 0;
       if (Math.abs(u.vy) < 8) u.vy = 0;
       setEngine(true, 0.22);
+    } else if (joyMoving && !up && !down && !(keys.ArrowLeft || keys.a || keys.A) && !(keys.ArrowRight || keys.d || keys.D)) {
+      // joystick-only: move directly in joystick direction, no gravity
+      u.vx = lerp(u.vx, joy.dx * 320, clamp(dt * 7, 0, 1));
+      u.vy = lerp(u.vy, joy.dy * 240, clamp(dt * 7, 0, 1));
+      const spd = Math.hypot(u.vx, u.vy);
+      setEngine(true, clamp(spd / 280, 0.25, 1));
+    } else if (!joyMoving && !up && !down && !(keys.ArrowLeft || keys.a || keys.A) && !(keys.ArrowRight || keys.d || keys.D)) {
+      // no input at all — hover in place
+      u.vx = lerp(u.vx, 0, clamp(dt * 8, 0, 1));
+      u.vy = lerp(u.vy, 0, clamp(dt * 8, 0, 1));
+      if (Math.abs(u.vx) < 4) u.vx = 0;
+      if (Math.abs(u.vy) < 4) u.vy = 0;
+      setEngine(false);
     } else {
       u.vx = lerp(u.vx, ax * 150, clamp(dt * 6, 0, 1));
       u.vy += 420 * dt;
@@ -657,8 +676,9 @@
 
   let totalScore = 0;
 
-  function showOverlay(title, sub, action, isComplete, fuelSnapshot, nextLvl) {
+  function showOverlay(title, sub, action, isComplete, fuelSnapshot, nextLvl, lvlBadge) {
     ovTitle.textContent = title;
+    ovLevel.textContent = lvlBadge || "";
     const panel = overlay.querySelector(".panel");
     panel.classList.remove("panel-complete", "panel-gameover");
     if (isComplete) panel.classList.add("panel-complete");
@@ -715,7 +735,9 @@
     pointerBeam = false;
     hideOverlay();
     stage.classList.add("playing");
-    banner(LEVELS[currentLevel].banner);
+    const lvlData = LEVELS[currentLevel];
+    levelLabel.textContent = "LEVEL " + (currentLevel + 1);
+    levelMission.textContent = lvlData.banner;
     beep({ freq: 660, dur: 0.1, type: "sine", gain: 0.07 });
   }
 
@@ -819,7 +841,7 @@
           const nextLvl = currentLevel + 1;
           const hasNext = nextLvl < LEVELS.length;
           if (hasNext) {
-            showOverlay("LEVEL COMPLETE!", "", "NEXT LEVEL", true, G.fuelAtLanding, nextLvl);
+            showOverlay("LEVEL COMPLETE!", "", "NEXT LEVEL", true, G.fuelAtLanding, nextLvl, "LEVEL " + (nextLvl + 1));
           } else {
             showGameComplete(G.fuelAtLanding);
           }
@@ -1481,18 +1503,19 @@
   joyPad.addEventListener("pointerup",     joyRelease);
   joyPad.addEventListener("pointercancel", joyRelease);
 
-  // canvas right-half tap = beam
-  canvas.addEventListener("pointerdown", (e) => {
+  beamBtn.addEventListener("pointerdown", (e) => {
+    e.stopPropagation();
     ensureAudio();
     if (G.state !== "play" && G.state !== "toPad" && G.state !== "birdHit") return;
-    const r = canvas.getBoundingClientRect();
-    if ((e.clientX - r.left) / r.width >= 0.5) {
-      pointerBeam = true;
-      canvas.setPointerCapture(e.pointerId);
-    }
+    pointerBeam = true;
+    beamPid = e.pointerId;
+    beamBtn.setPointerCapture(e.pointerId);
+    if (!G.ufo.armed) G.ufo.armed = true;
   });
-  canvas.addEventListener("pointerup",     () => { pointerBeam = false; });
-  canvas.addEventListener("pointercancel", () => { pointerBeam = false; });
+  beamBtn.addEventListener("pointerup",     (e) => { if (e.pointerId === beamPid) { pointerBeam = false; beamPid = -1; } });
+  beamBtn.addEventListener("pointercancel", (e) => { if (e.pointerId === beamPid) { pointerBeam = false; beamPid = -1; } });
+
+
 
   pauseBtn.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -1526,7 +1549,8 @@
       fillLevel();
       updateHUD();
       ovTitle.textContent = "UFO RANCH";
-      ovSub.textContent = "Level 1 — Abduct duck, frog & tortoise, then land";
+      ovLevel.textContent = "LEVEL 1";
+      ovSub.textContent = LEVELS[0].banner;
       ovBtn.textContent = startLabel;
       requestAnimationFrame(loop);
     })
@@ -1535,7 +1559,8 @@
       fillLevel();
       updateHUD();
       ovTitle.textContent = "UFO RANCH";
-      ovSub.textContent = "Level 1 — Abduct duck, frog & tortoise, then land";
+      ovLevel.textContent = "LEVEL 1";
+      ovSub.textContent = LEVELS[0].banner;
       ovBtn.textContent = startLabel;
       requestAnimationFrame(loop);
     });

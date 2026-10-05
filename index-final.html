@@ -579,6 +579,7 @@ const SPRITE_B64 = {"bg":"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/6zS
 
   const keys = Object.create(null);
   let pointerBeam = false;
+  let beamPid = -1;
   let beamLock = 0;
 
   // virtual joystick state
@@ -2016,6 +2017,18 @@ const SPRITE_B64 = {"bg":"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/6zS
   joyPad.addEventListener("pointerup",     joyRelease);
   joyPad.addEventListener("pointercancel", joyRelease);
 
+  beamBtn.addEventListener("pointerdown", (e) => {
+    e.stopPropagation();
+    ensureAudio();
+    if (G.state !== "play" && G.state !== "toPad" && G.state !== "birdHit") return;
+    pointerBeam = true;
+    beamPid = e.pointerId;
+    beamBtn.setPointerCapture(e.pointerId);
+    if (!G.ufo.armed) G.ufo.armed = true;
+  });
+  beamBtn.addEventListener("pointerup",     (e) => { if (e.pointerId === beamPid) { pointerBeam = false; beamPid = -1; } });
+  beamBtn.addEventListener("pointercancel", (e) => { if (e.pointerId === beamPid) { pointerBeam = false; beamPid = -1; } });
+
   // canvas right-half tap = beam
   canvas.addEventListener("pointerdown", (e) => {
     ensureAudio();
@@ -2023,11 +2036,12 @@ const SPRITE_B64 = {"bg":"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/6zS
     const r = canvas.getBoundingClientRect();
     if ((e.clientX - r.left) / r.width >= 0.5) {
       pointerBeam = true;
+      beamPid = e.pointerId;
       canvas.setPointerCapture(e.pointerId);
     }
   });
-  canvas.addEventListener("pointerup",     () => { pointerBeam = false; });
-  canvas.addEventListener("pointercancel", () => { pointerBeam = false; });
+  canvas.addEventListener("pointerup",     (e) => { if (e.pointerId === beamPid) { pointerBeam = false; beamPid = -1; } });
+  canvas.addEventListener("pointercancel", (e) => { if (e.pointerId === beamPid) { pointerBeam = false; beamPid = -1; } });
 
   pauseBtn.addEventListener("click", (e) => {
     e.stopPropagation();

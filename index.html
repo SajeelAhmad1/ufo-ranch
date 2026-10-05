@@ -13,7 +13,13 @@
     <div id="stage">
       <canvas id="game" width="1600" height="900"></canvas>
 
+      <div id="level-bubble">
+        <div id="level-label">LEVEL 1</div>
+        <div id="level-mission"></div>
+      </div>
+
       <div id="hud">
+        <div class="spacer"></div>
         <div class="pill pill-bar">
           <div class="icon-wrap"><canvas id="icon-ufo" width="72" height="72"></canvas></div>
           <div class="pill-body">
@@ -28,7 +34,6 @@
             <div class="bar"><i id="energy-bar"></i></div>
           </div>
         </div>
-        <div class="spacer"></div>
         <div class="pill pill-stat">
           <div class="icon-wrap star-ic">★</div>
           <div class="stat"><span class="score-lbl">SCORE</span> <span id="score-stat">0</span></div>
@@ -50,6 +55,7 @@
       <div id="overlay" class="show">
         <div class="panel">
           <canvas id="ov-ufo" width="220" height="152"></canvas>
+          <div id="ov-level"></div>
           <h1 id="ov-title">UFO RANCH</h1>
           <div id="ov-sub"></div>
           <button id="ov-btn" type="button">TAP / CLICK TO START</button>
