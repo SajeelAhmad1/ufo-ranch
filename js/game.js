@@ -20,6 +20,8 @@
     { target: 10, animals: [["duck", 400], ["frog", 700], ["duckling", 1000], ["duck", 250], ["frog", 550], ["duckling", 850], ["turtle", 150], ["turtle", 950], ["croc", 650], ["frog", 1100]], frogHopScale: 3.0, animalFlee: true, banner: "Level 8 - They sense you coming. Sneak up!" },
     { target: 4,  animals: [["frog", 300], ["frog", 600], ["frog", 900], ["frog", 1100]], frogHopScale: 5.0, frogAttack: true, banner: "Level 9 - Frogs attack! Watch out!" },
     { target: 6,  animals: [["duck", 200], ["duck", 700], ["duckling", 450], ["turtle", 900], ["croc", 600], ["frog", 1050]], frogHopScale: 4.0, animalSpeedMult: 2.2, animalBounce: true, frogAttackCount: 1, birds: [{ y: 500, speed: 620, waitT: 0, min: 1, max: 3 }, { y: 290, speed: 700, waitT: 1.2, min: 1, max: 3 }, { y: 360, speed: 560, waitT: 2.4, min: 1, max: 3 }], banner: "Level 10 - Maximum chaos. Good luck!" },
+    { target: 6,  animals: [["frog", 300], ["frog", 550], ["frog", 800], ["frog", 1050], ["frog", 180], ["frog", 680]], frogHopScale: 3.5, frogAmbush: true, bird: true, banner: "Level 11 - Frogs ambush from off-screen!" },
+    { target: 8,  animals: [["duck", 10000], ["duck", 600], ["duck", 950], ["frog", 400], ["frog", 850], ["turtle", 150], ["turtle", 750], ["croc", 1050]], frogHopScale: 4.0, frogAttackCount: 2, animalPanic: true, birds: [{ y: 270, speed: 340, waitT: 0, min: 2, max: 5 }, { y: 380, speed: 520, waitT: 1.8, min: 2, max: 5 }], banner: "Level 12 - Animals panic! Frogs attack!" },
   ];
   let currentLevel = 0;
   const UFO_W = 186;
@@ -434,7 +436,7 @@
       y: WALK_Y,
       dir: Math.random() < 0.5 ? -1 : 1,
       speed: def.speed * rand(0.88, 1.12) * (LEVELS[currentLevel].animalSpeedMult ?? 1.0),
-      canAttack: type === "frog" && ((LEVELS[currentLevel].frogAttackCount ?? 0) > 0 ? frogAttackSpawned++ < LEVELS[currentLevel].frogAttackCount : (LEVELS[currentLevel].frogAttack ?? false)),
+      canAttack: type === "frog" && ((LEVELS[currentLevel].frogAttackCount ?? 0) > 0 ? frogAttackSpawned++ < LEVELS[currentLevel].frogAttackCount : ((LEVELS[currentLevel].frogAttack ?? false) || (LEVELS[currentLevel].frogAmbush ?? false))),
       hopScale: type === "frog" ? frogHopScale() : 1.0,
       phase: rand(0, Math.PI * 2),
       walk: rand(0, 1),
@@ -449,6 +451,8 @@
       attackCD: rand(1, 3),
       attackVx: 0,
       attackVy: 0,
+      panicCD: rand(3, 7),
+      panicT: 0,
     });
   }
 
@@ -716,10 +720,10 @@
     panel.classList.add("panel-gameover");
     ovSub.innerHTML = `
       <div class="panel-stars">🏆🛸🏆</div>
-      <div class="gc-msg">All 10 levels conquered!</div>
+      <div class="gc-msg">All 12 levels conquered!</div>
       <div class="panel-stats">
         <div class="stat-card"><span class="sc-icon">⭐</span><span class="sc-val">${totalScore}</span><span class="sc-lbl">Total Score</span></div>
-        <div class="stat-card"><span class="sc-icon">🐾</span><span class="sc-val">10</span><span class="sc-lbl">Levels Done</span></div>
+        <div class="stat-card"><span class="sc-icon">🐾</span><span class="sc-val">${currentLevel + 1}</span><span class="sc-lbl">Levels Done</span></div>
         <div class="stat-card"><span class="sc-icon">⛽</span><span class="sc-val">${Math.round(fuelSnapshot ?? G.fuel)}%</span><span class="sc-lbl">Fuel Left</span></div>
       </div>`;
     ovBtn.textContent = "PLAY AGAIN";
@@ -908,6 +912,7 @@
 
       if (a.state === "walk") {
         if (a.canAttack) {
+          const isAmbush = LEVELS[currentLevel].frogAmbush ?? false;
           const inLight = G.ufo.beam && inBeam(a.x, a.y - ANIMAL_DEFS.frog.h * 0.35, ANIMAL_DEFS.frog.w * 0.28);
           if (inLight && !a.attacking) {
             a.scare = 1;
@@ -915,24 +920,28 @@
             if (!a.cried) { a.cried = true; sfxAnimal("frog"); }
             if (a.scareHold > 0.28) { a.state = "lift"; sfxAbduct(); }
           } else {
-            a.scare = lerp(a.scare, 0, clamp(dt * 7, 0, 1));
-            a.scareHold = 0;
-            a.cried = false;
+            if (!isAmbush) {
+              a.scare = lerp(a.scare, 0, clamp(dt * 7, 0, 1));
+              a.scareHold = 0;
+              a.cried = false;
+            }
             if (a.attacking) {
               a.x += a.attackVx * dt;
               a.y += a.attackVy * dt;
               a.attackVy += 900 * dt;
-              a.hop = 0;
+              a.hop = Math.max(0, -a.attackVy / 600);
               const ubox = ufoHitbox();
               if (a.x > ubox.x && a.x < ubox.x + ubox.w && a.y > ubox.y && a.y < ubox.y + ubox.h) {
                 bumpEnergy(18, a.x, a.y);
                 a.attacking = false;
                 a.y = WALK_Y;
                 a.attackCD = rand(2, 4);
+                a.scare = 0;
               } else if (a.y >= WALK_Y) {
                 a.y = WALK_Y;
                 a.attacking = false;
                 a.attackCD = rand(2, 4);
+                a.scare = 0;
               }
               a.walk += dt * (a.speed / 26);
             } else {
@@ -945,24 +954,43 @@
               const hopSpeed = airborne ? 1.35 * hs : 0.35;
               a.hop = airborne ? Math.sin((hopT - 0.28) / (airEnd - 0.28) * Math.PI) : 0;
               a.x += a.dir * a.speed * hopSpeed * dt;
-              if (a.attackCD <= 0) {
-                const dx = u.x - a.x;
-                const anyAttacking = G.animals.some((o) => o !== a && o.type === "frog" && o.attacking);
-                if (Math.abs(dx) < 500 && !anyAttacking) {
+              if (isAmbush) {
+                // Ambush: frog walks off-screen, then re-enters with a jump-attack
+                if (a.x < -80 || a.x > W + 80) {
+                  // Re-enter from opposite side aimed at UFO
+                  const enterX = a.x < -80 ? -60 : W + 60;
+                  a.x = enterX;
+                  a.y = WALK_Y;
+                  a.dir = enterX < W / 2 ? 1 : -1;
                   a.attacking = true;
-                  a.dir = dx > 0 ? 1 : -1;
+                  a.scare = 1;
+                  sfxAnimal("frog");
+                  const dx = u.x - a.x;
                   const dist = Math.hypot(dx, u.y - a.y);
-                  const t = Math.max(0.5, dist / 600);
+                  const t = Math.max(0.6, dist / 580);
                   a.attackVx = dx / t;
                   a.attackVy = (u.y - a.y) / t - 0.5 * 900 * t;
                 }
-              }
-              if (LEVELS[currentLevel].animalBounce) {
-                if (a.x < 150) { a.x = 150; a.dir = 1; }
-                if (a.x > W - 150) { a.x = W - 150; a.dir = -1; }
               } else {
-                if (a.x < -80) a.x = W + 80;
-                if (a.x > W + 80) a.x = -80;
+                if (a.attackCD <= 0) {
+                  const dx = u.x - a.x;
+                  const anyAttacking = G.animals.some((o) => o !== a && o.type === "frog" && o.attacking);
+                  if (Math.abs(dx) < 500 && !anyAttacking) {
+                    a.attacking = true;
+                    a.dir = dx > 0 ? 1 : -1;
+                    const dist = Math.hypot(dx, u.y - a.y);
+                    const t = Math.max(0.5, dist / 600);
+                    a.attackVx = dx / t;
+                    a.attackVy = (u.y - a.y) / t - 0.5 * 900 * t;
+                  }
+                }
+                if (LEVELS[currentLevel].animalBounce) {
+                  if (a.x < 150) { a.x = 150; a.dir = 1; }
+                  if (a.x > W - 150) { a.x = W - 150; a.dir = -1; }
+                } else {
+                  if (a.x < -80) a.x = W + 80;
+                  if (a.x > W + 80) a.x = -80;
+                }
               }
             }
           }
@@ -1042,6 +1070,20 @@
           } else {
             if (a.x < -80) { a.x = W + 80; }
             if (a.x > W + 80) { a.x = -80; }
+          }
+          if (LEVELS[currentLevel].animalPanic) {
+            if (a.panicT > 0) {
+              a.panicT -= dt;
+              a.x += a.dir * a.speed * 3.5 * dt;
+              a.scare = Math.min(1, a.scare + dt * 4);
+            } else {
+              a.panicCD -= dt;
+              if (a.panicCD <= 0) {
+                a.dir = Math.random() < 0.5 ? -1 : 1;
+                a.panicT = rand(0.4, 0.9);
+                a.panicCD = rand(3, 7);
+              }
+            }
           }
           if (Math.random() < dt * 0.035) a.dir *= -1;
         }

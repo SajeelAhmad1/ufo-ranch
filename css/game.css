@@ -418,8 +418,6 @@ html, body {
   text-transform: uppercase;
 }
 
-#hint { display: none; }
-
 /* Popup + HUD: mobile landscape (short screens) only */
 @media (max-height: 500px) {
   /* --- Panel --- */
