@@ -1163,18 +1163,33 @@ const SPRITE_B64 = {"bg":"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/6zS
     const pUp   = joy.dy < 0 ? -joy.dy : 0;
     const pDown = joy.dy > 0 ?  joy.dy : 0;
 
+    const joyMoving = joy.active && (Math.abs(joy.dx) > 0.08 || Math.abs(joy.dy) > 0.08);
+
     if (beaming) {
       u.vx = lerp(u.vx, 0, clamp(dt * 10, 0, 1));
       u.vy = lerp(u.vy, 0, clamp(dt * 10, 0, 1));
       if (Math.abs(u.vx) < 8) u.vx = 0;
       if (Math.abs(u.vy) < 8) u.vy = 0;
       setEngine(true, 0.22);
+    } else if (joyMoving && !up && !down && !(keys.ArrowLeft || keys.a || keys.A) && !(keys.ArrowRight || keys.d || keys.D)) {
+      // joystick-only: move directly in joystick direction, no gravity
+      u.vx = lerp(u.vx, joy.dx * 320, clamp(dt * 7, 0, 1));
+      u.vy = lerp(u.vy, joy.dy * 240, clamp(dt * 7, 0, 1));
+      const spd = Math.hypot(u.vx, u.vy);
+      setEngine(true, clamp(spd / 280, 0.25, 1));
+    } else if (!joyMoving && !up && !down && !(keys.ArrowLeft || keys.a || keys.A) && !(keys.ArrowRight || keys.d || keys.D)) {
+      // no input at all — hover in place
+      u.vx = lerp(u.vx, 0, clamp(dt * 8, 0, 1));
+      u.vy = lerp(u.vy, 0, clamp(dt * 8, 0, 1));
+      if (Math.abs(u.vx) < 4) u.vx = 0;
+      if (Math.abs(u.vy) < 4) u.vy = 0;
+      setEngine(false);
     } else {
-      u.vx = lerp(u.vx, ax * 150, clamp(dt * 6, 0, 1));
-      u.vy += 420 * dt;
-      if (up || pUp > 0) u.vy -= 780 * (up ? 1 : pUp) * dt;
-      if (down || pDown > 0) u.vy += 260 * (down ? 1 : pDown) * dt;
-      u.vy = clamp(u.vy, -240, 380);
+      u.vx = lerp(u.vx, ax * 220, clamp(dt * 6, 0, 1));
+      if (up || pUp > 0) u.vy -= 900 * (up ? 1 : pUp) * dt;
+      else if (down || pDown > 0) u.vy += 400 * (down ? 1 : pDown) * dt;
+      else u.vy = lerp(u.vy, 0, clamp(dt * 8, 0, 1));
+      u.vy = clamp(u.vy, -280, 280);
       const spd = Math.hypot(u.vx, u.vy);
       setEngine(spd > 12 || movePressed(), clamp(spd / 280, 0.25, 1));
     }
@@ -2000,8 +2015,13 @@ const SPRITE_B64 = {"bg":"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/6zS
     const r = joyPad.getBoundingClientRect();
     const cx = r.left + r.width  * 0.5;
     const cy = r.top  + r.height * 0.5;
-    const rawDx = e.clientX - cx;
-    const rawDy = e.clientY - cy;
+    let rawDx = e.clientX - cx;
+    let rawDy = e.clientY - cy;
+    // On mobile the body is always CSS-rotated 90deg clockwise so counter-rotate
+    // pointer deltas to match visual axes.
+    if (isTouchDevice) {
+      [rawDx, rawDy] = [rawDy, rawDx];
+    }
     const dist  = Math.hypot(rawDx, rawDy);
     const maxR  = r.width * 0.5;
     const scale = dist > maxR ? maxR / dist : 1;
