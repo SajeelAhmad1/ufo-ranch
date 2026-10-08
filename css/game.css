@@ -416,19 +416,21 @@ html, body {
 
 #hint { display: none; }
 
-/* force landscape on portrait mobile by rotating the whole page */
-@media (max-width: 926px) and (orientation: portrait) {
-  body {
-    position: fixed;
-    top: 0;
-    left: 0;
+/* Small screens: rotate entire frame to force landscape */
+@media (max-width: 768px) and (orientation: portrait) {
+  #frame {
     width: 100vh;
     height: 100vw;
+    transform: rotate(90deg);
     transform-origin: top left;
-    transform: rotate(90deg) translateX(0) translateY(-100%);
+    position: fixed;
+    top: 0;
+    left: 100vw;
     overflow: hidden;
   }
 }
+
+/* Responsive: no orientation lock — game scales to fill viewport */
 
 kbd {
   display: inline-block;

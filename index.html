@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <meta name="screen-orientation" content="landscape" />
   <title>UFO Ranch — Abduct &amp; Fly!</title>
+  <script src="https://www.youtube.com/game_api/v1"></script>
   <link rel="stylesheet" href="css/fonts.css" />
   <link rel="stylesheet" href="css/game.css" />
 </head>
@@ -38,19 +38,19 @@
           <div class="icon-wrap star-ic">★</div>
           <div class="stat"><span class="score-lbl">SCORE</span> <span id="score-stat">0</span></div>
         </div>
-        <button id="pause-btn" type="button" aria-label="Pause">❚❚</button>
+        <button id="pause-btn" type="button" aria-label="Pause game">❚❚</button>
       </div>
 
       <div id="goal-chip">ANIMALS <b id="goal-stat">0 / 5</b></div>
 
       <div id="banner" class="hidden"></div>
 
-      <div id="joy-pad" aria-label="Move">
+      <div id="joy-pad" role="slider" aria-label="Move UFO" aria-valuemin="-1" aria-valuemax="1" aria-valuenow="0">
         <div id="joy-ring"></div>
         <div id="joy-knob"></div>
       </div>
 
-      <button id="beam-btn" type="button" aria-label="Beam">☄️<br>BEAM</button>
+      <button id="beam-btn" type="button" aria-label="Activate tractor beam">☄️<br>BEAM</button>
 
       <div id="overlay" class="show">
         <div class="panel">
@@ -70,6 +70,133 @@
 
   </div>
   <script src="js/sprites_b64.js"></script>
+  <script>
+  // ── YouTube Playables integration ──────────────────────────────────────────
+  (function () {
+    "use strict";
+
+    // ── Canvas responsive scaling ──────────────────────────────────────────
+    function resizeCanvas() {
+      var canvas = document.getElementById("game");
+      var stage  = document.getElementById("stage");
+      if (!canvas || !stage) return;
+      var vw = stage.clientWidth  || window.innerWidth;
+      var vh = stage.clientHeight || window.innerHeight;
+      if (vw <= 0 || vh <= 0) return;
+      // Fit 16:9 game area inside the available viewport, letterboxed
+      var gameAspect = 1600 / 900;
+      var vpAspect   = vw / vh;
+      var cssW, cssH;
+      if (vpAspect >= gameAspect) {
+        cssH = vh;
+        cssW = vh * gameAspect;
+      } else {
+        cssW = vw;
+        cssH = vw / gameAspect;
+      }
+      canvas.style.width  = cssW + "px";
+      canvas.style.height = cssH + "px";
+      canvas.style.position = "absolute";
+      canvas.style.left = ((vw - cssW) / 2) + "px";
+      canvas.style.top  = ((vh - cssH) / 2) + "px";
+    }
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+
+    // ── YouTube Playables SDK helpers ──────────────────────────────────────
+    var _ytFirstFrameCalled = false;
+    var _ytGameReadyCalled  = false;
+
+    window._ytSignalFirstFrame = function () {
+      if (_ytFirstFrameCalled) return;
+      _ytFirstFrameCalled = true;
+      try {
+        if (window.youtube && window.youtube.playables &&
+            typeof window.youtube.playables.firstFrameReady === "function") {
+          window.youtube.playables.firstFrameReady();
+        }
+      } catch (e) { /* SDK unavailable in local dev */ }
+    };
+
+    window._ytSignalGameReady = function () {
+      if (_ytGameReadyCalled) return;
+      _ytGameReadyCalled = true;
+      try {
+        if (window.youtube && window.youtube.playables &&
+            typeof window.youtube.playables.gameReady === "function") {
+          window.youtube.playables.gameReady();
+        }
+      } catch (e) { /* SDK unavailable in local dev */ }
+    };
+
+    // ── Audio state ────────────────────────────────────────────────────────
+    window._ytAudioEnabled = true;
+    try {
+      if (window.youtube && window.youtube.playables) {
+        var ytAudio = window.youtube.playables.isAudioEnabled;
+        if (typeof ytAudio === "boolean") window._ytAudioEnabled = ytAudio;
+        if (typeof window.youtube.playables.onAudioEnabledChange === "function") {
+          window.youtube.playables.onAudioEnabledChange(function (enabled) {
+            window._ytAudioEnabled = enabled;
+            // Suspend/resume the shared AudioContext if the game has created one
+            try {
+              if (window._gameAudioCtx) {
+                if (!enabled && window._gameAudioCtx.state === "running") {
+                  window._gameAudioCtx.suspend();
+                } else if (enabled && window._gameAudioCtx.state === "suspended") {
+                  window._gameAudioCtx.resume();
+                }
+              }
+            } catch (e) {}
+          });
+        }
+      }
+    } catch (e) {}
+
+    // ── YouTube Pause / Resume ─────────────────────────────────────────────
+    window._ytPaused = false;
+    try {
+      if (window.youtube && window.youtube.playables) {
+        if (typeof window.youtube.playables.onPause === "function") {
+          window.youtube.playables.onPause(function () {
+            window._ytPaused = true;
+            if (window._ytPauseGame) window._ytPauseGame();
+          });
+        }
+        if (typeof window.youtube.playables.onResume === "function") {
+          window.youtube.playables.onResume(function () {
+            window._ytPaused = false;
+            if (window._ytResumeGame) window._ytResumeGame();
+          });
+        }
+      }
+    } catch (e) {}
+
+    // ── Cloud Save / Load ──────────────────────────────────────────────────
+    window._ytSaveData = function (data) {
+      try {
+        if (window.youtube && window.youtube.playables &&
+            typeof window.youtube.playables.saveData === "function") {
+          window.youtube.playables.saveData(JSON.stringify(data));
+        }
+      } catch (e) {}
+    };
+
+    window._ytLoadData = function (callback) {
+      try {
+        if (window.youtube && window.youtube.playables &&
+            typeof window.youtube.playables.loadData === "function") {
+          window.youtube.playables.loadData(function (raw) {
+            try { callback(raw ? JSON.parse(raw) : null); }
+            catch (e) { callback(null); }
+          });
+          return;
+        }
+      } catch (e) {}
+      callback(null); // SDK unavailable
+    };
+  }());
+  </script>
   <script src="js/game.js"></script>
 </body>
 </html>

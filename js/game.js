@@ -60,12 +60,17 @@
 
   let audioCtx = null;
   function ensureAudio() {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!(window._ytAudioEnabled !== false)) return null; // respect YT audio state
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      window._gameAudioCtx = audioCtx; // expose for YT audio mute/unmute
+    }
     if (audioCtx.state === "suspended") audioCtx.resume();
     return audioCtx;
   }
   function beep({ freq = 440, dur = 0.12, type = "sine", gain = 0.08, slide = 0 }) {
     const ac = ensureAudio();
+    if (!ac) return; // audio disabled
     const t0 = ac.currentTime;
     const o = ac.createOscillator();
     const g = ac.createGain();
@@ -93,6 +98,7 @@
   const sfxBump = () => beep({ freq: 140, dur: 0.16, type: "square", gain: 0.06, slide: -70 });
   function noiseBurst({ dur = 0.16, gain = 0.07, freq = 400, q = 2.5, type = "bandpass" }) {
     const ac = ensureAudio();
+    if (!ac) return; // audio disabled
     const n = ac.createBuffer(1, Math.max(1, (ac.sampleRate * dur) | 0), ac.sampleRate);
     const data = n.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
@@ -140,6 +146,8 @@
       return;
     }
     const ac = ensureAudio();
+    if (!ac) return; // audio disabled
+    if (!ac) return; // audio disabled
     if (!engine) {
       const osc = ac.createOscillator();
       const osc2 = ac.createOscillator();
@@ -752,6 +760,25 @@
     }
   }
 
+
+
+  // YouTube-controlled pause (separate from in-game pause button)
+  let _ytForcePaused = false;
+  window._ytPauseGame = function () {
+    if (_ytForcePaused) return;
+    _ytForcePaused = true;
+    setEngine(false);
+    if (audioCtx && audioCtx.state === 'running') audioCtx.suspend();
+  };
+  window._ytResumeGame = function () {
+    if (!_ytForcePaused) return;
+    _ytForcePaused = false;
+    G.last = performance.now();
+    if (window._ytAudioEnabled !== false && audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  };
+
   function updateHUD() {
     fuelBar.style.width = G.fuel + "%";
     energyBar.style.width = G.energy + "%";
@@ -840,6 +867,10 @@
           G.state = "complete";
           const nextLvl = currentLevel + 1;
           const hasNext = nextLvl < LEVELS.length;
+          // Cloud save: persist highest reached level
+          if (window._ytSaveData) {
+            window._ytSaveData({ highestLevel: nextLvl, totalScore: totalScore + G.score });
+          }
           if (hasNext) {
             showOverlay("LEVEL COMPLETE!", "", "NEXT LEVEL", true, G.fuelAtLanding, nextLvl, "LEVEL " + (nextLvl + 1));
           } else {
@@ -1439,6 +1470,7 @@
     });
   }
   function loop(now) {
+    if (window._ytPaused || window._ytForcePaused) { G.last = now; requestAnimationFrame(loop); return; }
     const dt = G.last ? clamp((now - G.last) / 1000, 0, 0.05) : 0;
     G.last = now;
     update(dt);
@@ -1481,6 +1513,10 @@
     joyPad.setPointerCapture(e.pointerId);
     joyPad.style.cursor = "grabbing";
   });
+  function isCSSRotated() {
+    return window.innerWidth < window.innerHeight && window.innerWidth <= 768;
+  }
+
   joyPad.addEventListener("pointermove", (e) => {
     if (!joy.active || e.pointerId !== joy.pid) return;
     const r = joyPad.getBoundingClientRect();
@@ -1491,8 +1527,14 @@
     const dist  = Math.hypot(rawDx, rawDy);
     const maxR  = r.width * 0.5;
     const scale = dist > maxR ? maxR / dist : 1;
-    joy.dx = clamp((rawDx * scale) / maxR, -1, 1);
-    joy.dy = clamp((rawDy * scale) / maxR, -1, 1);
+    if (isCSSRotated()) {
+      // Frame is rotated 90deg CW: touch X -> game -Y, touch Y -> game X
+      joy.dx = clamp((rawDy * scale) / maxR, -1, 1);
+      joy.dy = clamp((-rawDx * scale) / maxR, -1, 1);
+    } else {
+      joy.dx = clamp((rawDx * scale) / maxR, -1, 1);
+      joy.dy = clamp((rawDy * scale) / maxR, -1, 1);
+    }
     updateKnob();
   });
   function joyRelease() {
@@ -1544,24 +1586,25 @@
 
   const startLabel = navigator.maxTouchPoints > 0 ? "TAP TO START" : "CLICK TO START";
 
-  loadSprites()
-    .then(() => {
-      fillLevel();
-      updateHUD();
-      ovTitle.textContent = "UFO RANCH";
-      ovLevel.textContent = "LEVEL 1";
-      ovSub.textContent = LEVELS[0].banner;
-      ovBtn.textContent = startLabel;
-      requestAnimationFrame(loop);
-    })
-    .catch((err) => {
-      console.error(err);
-      fillLevel();
-      updateHUD();
-      ovTitle.textContent = "UFO RANCH";
-      ovLevel.textContent = "LEVEL 1";
-      ovSub.textContent = LEVELS[0].banner;
-      ovBtn.textContent = startLabel;
-      requestAnimationFrame(loop);
+  function _initGame(savedData) {
+    if (savedData && typeof savedData.highestLevel === "number" && savedData.highestLevel > 0) {
+      // Restore highest unlocked level for display; game still starts at level 0
+      window._ytHighestLevel = savedData.highestLevel;
+    }
+    fillLevel();
+    updateHUD();
+    ovTitle.textContent = "UFO RANCH";
+    ovLevel.textContent = "LEVEL 1";
+    ovSub.textContent = LEVELS[0].banner;
+    ovBtn.textContent = startLabel;
+    if (window._ytSignalFirstFrame) window._ytSignalFirstFrame();
+    requestAnimationFrame(function (now) {
+      loop(now);
+      if (window._ytSignalGameReady) window._ytSignalGameReady();
     });
+  }
+
+  loadSprites()
+    .then(() => { window._ytLoadData ? window._ytLoadData(_initGame) : _initGame(null); })
+    .catch((err) => { console.error(err); window._ytLoadData ? window._ytLoadData(_initGame) : _initGame(null); });
 })();
