@@ -35,8 +35,8 @@ html, body {
 
 #level-bubble {
   position: absolute;
-  top: 2.4%;
-  left: 1.6%;
+  top: calc(var(--cy, 0px) + var(--ch, 100%) * 0.024);
+  left: calc(var(--cx, 0px) + var(--cw, 100%) * 0.016);
   z-index: 5;
   pointer-events: none;
   background: linear-gradient(160deg, #1a6abf, #0d3d7a);
@@ -70,9 +70,10 @@ html, body {
 
 #hud {
   position: absolute;
-  top: 2.4%;
-  left: 1.6%;
-  right: 1.6%;
+  top: calc(var(--cy, 0px) + var(--ch, 100%) * 0.024);
+  left: calc(var(--cx, 0px) + var(--cw, 100%) * 0.016);
+  right: calc(var(--cx, 0px) + var(--cw, 100%) * 0.016);
+  width: calc(var(--cw, 100%) * 0.968);
   display: flex;
   align-items: center;
   gap: 1.1%;
@@ -176,8 +177,8 @@ html, body {
 
 #goal-chip {
   position: absolute;
-  top: 12%;
-  right: 1.8%;
+  top: calc(var(--cy, 0px) + var(--ch, 100%) * 0.12);
+  right: calc(var(--cx, 0px) + var(--cw, 100%) * 0.018);
   z-index: 5;
   pointer-events: none;
   background: rgba(16, 70, 120, 0.72);
@@ -191,8 +192,8 @@ html, body {
 
 #banner {
   position: absolute;
-  top: 11%;
-  left: 50%;
+  top: calc(var(--cy, 0px) + var(--ch, 100%) * 0.11);
+  left: calc(var(--cx, 0px) + var(--cw, 100%) * 0.5);
   transform: translateX(-50%);
   z-index: 6;
   background: rgba(20, 80, 140, 0.92);
@@ -209,7 +210,10 @@ html, body {
 
 #overlay {
   position: absolute;
-  inset: 0;
+  top: var(--cy, 0px);
+  left: var(--cx, 0px);
+  width: var(--cw, 100%);
+  height: var(--ch, 100%);
   z-index: 8;
   display: none;
   align-items: center;
@@ -416,26 +420,45 @@ html, body {
 
 #hint { display: none; }
 
-/* Popup fits within any screen height */
-@media (max-height: 600px), (max-width: 500px) {
+/* Popup + HUD: mobile landscape (short screens) only */
+@media (max-height: 500px) {
+  /* --- Panel --- */
   .panel {
-    width: min(420px, 88%);
-    padding: 14px 18px 14px;
-    border-radius: 20px;
+    width: min(400px, 80%);
+    padding: 10px 16px 12px;
+    border-radius: 16px;
   }
-  #ov-ufo { width: 72px; height: 50px; margin-bottom: 2px; }
-  .panel h1 { font-size: 28px; margin-bottom: 2px; }
-  .panel-gameover h1 { font-size: 30px; }
-  #ov-level { font-size: 11px; padding: 2px 12px; margin-bottom: 3px; }
-  #ov-sub { font-size: 12px; }
-  .gc-msg { font-size: 13px; margin-bottom: 8px; }
-  .panel-stars { font-size: 22px; letter-spacing: 4px; margin-bottom: 10px; }
-  .panel-stats { gap: 6px; margin-bottom: 12px; }
-  .stat-card { padding: 8px 4px; border-radius: 10px; gap: 2px; }
-  .stat-card .sc-icon { font-size: 16px; }
-  .stat-card .sc-val { font-size: 18px; }
+  #ov-ufo { width: 60px; height: 42px; margin-bottom: 2px; }
+  .panel h1 { font-size: 26px; margin-bottom: 2px; }
+  .panel-gameover h1 { font-size: 28px; }
+  #ov-level { font-size: 10px; padding: 2px 10px; margin-bottom: 3px; }
+  #ov-sub { font-size: 11px; margin-bottom: 2px; }
+  .gc-msg { font-size: 11px; margin-bottom: 8px; }
+  .panel-stars { font-size: 20px; letter-spacing: 4px; margin-bottom: 8px; }
+  .panel-stats { gap: 6px; margin-bottom: 10px; }
+  .stat-card { padding: 6px 4px; border-radius: 10px; gap: 2px; }
+  .stat-card .sc-icon { font-size: 14px; }
+  .stat-card .sc-val { font-size: 17px; }
   .stat-card .sc-lbl { font-size: 9px; }
-  .panel button { font-size: 16px; padding: 8px 28px; margin-top: 4px; }
+  .panel button { font-size: 15px; padding: 8px 24px; margin-top: 4px; box-shadow: 0 3px 0 #d49a12; }
+
+  /* --- HUD --- */
+  .pill { height: 28px; padding: 2px 8px 2px 3px; gap: 4px; }
+  .pill-bar { flex: 1 1 80px; max-width: 150px; }
+  .icon-wrap { width: 20px; height: 20px; flex: 0 0 20px; font-size: 11px; }
+  #icon-ufo { width: 18px; height: 18px; }
+  .lbl { font-size: 8px; margin-bottom: 1px; }
+  .bar { height: 6px; }
+  .stat { font-size: 11px; }
+  .score-lbl { font-size: 8px; }
+  #pause-btn { width: 26px; height: 26px; font-size: 8px; margin-left: 4px; }
+  #goal-chip { font-size: 9px; padding: 3px 8px; }
+  #banner { font-size: 14px; padding: 6px 16px; }
+
+  /* --- Level bubble --- */
+  #level-bubble { padding: 4px 10px 5px; border-radius: 12px; min-width: 80px; }
+  #level-label { font-size: 9px; margin-bottom: 1px; }
+  #level-mission { font-size: 8px; }
 }
 
 /* Small screens: rotate entire frame to force landscape */
@@ -468,8 +491,8 @@ kbd {
 
 #beam-btn {
   position: absolute;
-  bottom: 5%;
-  right: 4%;
+  bottom: calc(var(--cy, 0px) + var(--ch, 100%) * 0.05);
+  right: calc(var(--cx, 0px) + var(--cw, 100%) * 0.04);
   z-index: 10;
   width: 11%;
   aspect-ratio: 1;
@@ -504,8 +527,8 @@ kbd {
 
 #joy-pad {
   position: absolute;
-  bottom: 5%;
-  left: 4%;
+  bottom: calc(var(--cy, 0px) + var(--ch, 100%) * 0.05);
+  left: calc(var(--cx, 0px) + var(--cw, 100%) * 0.04);
   z-index: 10;
   width: 11%;
   aspect-ratio: 1;

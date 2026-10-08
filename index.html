@@ -83,7 +83,6 @@
       var vw = stage.clientWidth  || window.innerWidth;
       var vh = stage.clientHeight || window.innerHeight;
       if (vw <= 0 || vh <= 0) return;
-      // Fit 16:9 game area inside the available viewport, letterboxed
       var gameAspect = 1600 / 900;
       var vpAspect   = vw / vh;
       var cssW, cssH;
@@ -94,11 +93,18 @@
         cssW = vw;
         cssH = vw / gameAspect;
       }
-      canvas.style.width  = cssW + "px";
-      canvas.style.height = cssH + "px";
+      var cssL = (vw - cssW) / 2;
+      var cssT = (vh - cssH) / 2;
+      canvas.style.width    = cssW + "px";
+      canvas.style.height   = cssH + "px";
       canvas.style.position = "absolute";
-      canvas.style.left = ((vw - cssW) / 2) + "px";
-      canvas.style.top  = ((vh - cssH) / 2) + "px";
+      canvas.style.left     = cssL + "px";
+      canvas.style.top      = cssT + "px";
+      // Expose canvas offset so CSS can keep HUD inside the game area
+      stage.style.setProperty("--cx", cssL + "px");
+      stage.style.setProperty("--cy", cssT + "px");
+      stage.style.setProperty("--cw", cssW + "px");
+      stage.style.setProperty("--ch", cssH + "px");
     }
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
