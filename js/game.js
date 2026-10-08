@@ -10,16 +10,16 @@
   const UFO_Y = 290;
   const PAD_X = 1288;
   const LEVELS = [
-    { target: 3,  animals: [["duck", 470], ["frog", 780], ["turtle", 1000]],                                                    banner: "Level 1 â€” Abduct duck, frog & tortoise!" },
-    { target: 5,  animals: [["duck", 300], ["duck", 700], ["frog", 500], ["frog", 950], ["turtle", 1100]],                      banner: "Level 2 â€” Abduct 2 ducks, 2 frogs & a tortoise!" },
-    { target: 5,  animals: [["duck", 400], ["duckling", 650], ["turtle", 900], ["frog", 280], ["frog", 1050]], frogHopScale: 3.0, banner: "Level 3 â€” Watch out, the frogs jump higher!" },
-    { target: 3,  animals: [["frog", 300], ["frog", 700], ["frog", 1050]],                                      frogHopScale: 6.0, frogFlee: true, banner: "Level 4 â€” 3 frogs. They flee. Good luck!" },
-    { target: 4,  animals: [["duck", 400], ["frog", 650], ["turtle", 900], ["duckling", 300]], bird: true,        banner: "Level 5 â€” Watch the skies! A bird is flying!" },
-    { target: 3,  animals: [["frog", 300], ["frog", 700], ["frog", 1050]],                      frogHopScale: 6.0, frogFlee: true, birds: [{ y: 260, speed: 180, waitT: 0, min: 3, max: 6 }, { y: 340, speed: 260, waitT: 2.5, min: 3, max: 6 }], banner: "Level 6 â€” 2 birds, 3 hyper frogs. Survive!" },
-    { target: 10, animals: [["duck", 300], ["duck", 750], ["frog", 450], ["frog", 850], ["frog", 1050], ["turtle", 200], ["turtle", 600], ["duckling", 400], ["duckling", 900], ["croc", 700]], frogHopScale: 4.0, birds: [{ y: 230, speed: 420, waitT: 0, min: 1, max: 2 }, { y: 290, speed: 480, waitT: 1.0, min: 1, max: 2 }, { y: 350, speed: 380, waitT: 2.0, min: 1, max: 2 }], banner: "Level 7 â€” 10 animals, 3 fast birds. Chaos!" },
-    { target: 10, animals: [["duck", 400], ["frog", 700], ["duckling", 1000], ["duck", 250], ["frog", 550], ["duckling", 850], ["turtle", 150], ["turtle", 950], ["croc", 650], ["frog", 1100]], frogHopScale: 3.0, animalFlee: true, banner: "Level 8 â€” They sense you coming. Sneak up!" },
-    { target: 4,  animals: [["frog", 300], ["frog", 600], ["frog", 900], ["frog", 1100]], frogHopScale: 5.0, frogAttack: true, banner: "Level 9 â€” Frogs attack! Watch out!" },
-    { target: 6,  animals: [["duck", 200], ["duck", 700], ["duckling", 450], ["turtle", 900], ["croc", 600], ["frog", 1050]], frogHopScale: 4.0, animalSpeedMult: 2.2, animalBounce: true, frogAttackCount: 1, birds: [{ y: 500, speed: 620, waitT: 0, min: 1, max: 3 }, { y: 290, speed: 700, waitT: 1.2, min: 1, max: 3 }, { y: 360, speed: 560, waitT: 2.4, min: 1, max: 3 }], banner: "Level 10 â€” Maximum chaos. Good luck!" },
+    { target: 3,  animals: [["duck", 470], ["frog", 780], ["turtle", 1000]],                                                    banner: "Level 1 - Abduct duck, frog & tortoise!" },
+    { target: 5,  animals: [["duck", 300], ["duck", 700], ["frog", 500], ["frog", 950], ["turtle", 1100]],                      banner: "Level 2 - Abduct 2 ducks, 2 frogs & a tortoise!" },
+    { target: 5,  animals: [["duck", 400], ["duckling", 650], ["turtle", 900], ["frog", 280], ["frog", 1050]], frogHopScale: 3.0, banner: "Level 3 - Watch out, the frogs jump higher!" },
+    { target: 3,  animals: [["frog", 300], ["frog", 700], ["frog", 1050]],                                      frogHopScale: 6.0, frogFlee: true, banner: "Level 4 - 3 frogs. They flee. Good luck!" },
+    { target: 4,  animals: [["duck", 400], ["frog", 650], ["turtle", 900], ["duckling", 300]], bird: true,        banner: "Level 5 - Watch the skies! A bird is flying!" },
+    { target: 3,  animals: [["frog", 300], ["frog", 700], ["frog", 1050]],                      frogHopScale: 6.0, frogFlee: true, birds: [{ y: 260, speed: 180, waitT: 0, min: 3, max: 6 }, { y: 340, speed: 260, waitT: 2.5, min: 3, max: 6 }], banner: "Level 6 - 2 birds, 3 hyper frogs. Survive!" },
+    { target: 10, animals: [["duck", 300], ["duck", 750], ["frog", 450], ["frog", 850], ["frog", 1050], ["turtle", 200], ["turtle", 600], ["duckling", 400], ["duckling", 900], ["croc", 700]], frogHopScale: 4.0, birds: [{ y: 230, speed: 420, waitT: 0, min: 1, max: 2 }, { y: 290, speed: 480, waitT: 1.0, min: 1, max: 2 }, { y: 350, speed: 380, waitT: 2.0, min: 1, max: 2 }], banner: "Level 7 - 10 animals, 3 fast birds. Chaos!" },
+    { target: 10, animals: [["duck", 400], ["frog", 700], ["duckling", 1000], ["duck", 250], ["frog", 550], ["duckling", 850], ["turtle", 150], ["turtle", 950], ["croc", 650], ["frog", 1100]], frogHopScale: 3.0, animalFlee: true, banner: "Level 8 - They sense you coming. Sneak up!" },
+    { target: 4,  animals: [["frog", 300], ["frog", 600], ["frog", 900], ["frog", 1100]], frogHopScale: 5.0, frogAttack: true, banner: "Level 9 - Frogs attack! Watch out!" },
+    { target: 6,  animals: [["duck", 200], ["duck", 700], ["duckling", 450], ["turtle", 900], ["croc", 600], ["frog", 1050]], frogHopScale: 4.0, animalSpeedMult: 2.2, animalBounce: true, frogAttackCount: 1, birds: [{ y: 500, speed: 620, waitT: 0, min: 1, max: 3 }, { y: 290, speed: 700, waitT: 1.2, min: 1, max: 3 }, { y: 360, speed: 560, waitT: 2.4, min: 1, max: 3 }], banner: "Level 10 - Maximum chaos. Good luck!" },
   ];
   let currentLevel = 0;
   const UFO_W = 186;
@@ -692,11 +692,11 @@
     if (isComplete) panel.classList.add("panel-complete");
     if (isComplete) {
       ovSub.innerHTML = `
-        <div class="panel-stars">â­â­â­</div>
+        <div class="panel-stars">⭐⭐⭐</div>
         <div class="panel-stats">
-          <div class="stat-card"><span class="sc-icon">ðŸ¾</span><span class="sc-val">${G.collected}</span><span class="sc-lbl">Animals</span></div>
-          <div class="stat-card"><span class="sc-icon">â­</span><span class="sc-val">${G.score}</span><span class="sc-lbl">Score</span></div>
-          <div class="stat-card"><span class="sc-icon">â›½</span><span class="sc-val">${Math.round(fuelSnapshot ?? G.fuel)}%</span><span class="sc-lbl">Fuel Left</span></div>
+          <div class="stat-card"><span class="sc-icon">🐾</span><span class="sc-val">${G.collected}</span><span class="sc-lbl">Animals</span></div>
+          <div class="stat-card"><span class="sc-icon">⭐</span><span class="sc-val">${G.score}</span><span class="sc-lbl">Score</span></div>
+          <div class="stat-card"><span class="sc-icon">⛽</span><span class="sc-val">${Math.round(fuelSnapshot ?? G.fuel)}%</span><span class="sc-lbl">Fuel Left</span></div>
         </div>`;
     } else {
       ovSub.textContent = sub;
@@ -715,12 +715,12 @@
     panel.classList.remove("panel-complete");
     panel.classList.add("panel-gameover");
     ovSub.innerHTML = `
-      <div class="panel-stars">ðŸ†ðŸ›¸ðŸ†</div>
+      <div class="panel-stars">🏆🛸🏆</div>
       <div class="gc-msg">All 10 levels conquered!</div>
       <div class="panel-stats">
-        <div class="stat-card"><span class="sc-icon">â­</span><span class="sc-val">${totalScore}</span><span class="sc-lbl">Total Score</span></div>
-        <div class="stat-card"><span class="sc-icon">ðŸ¾</span><span class="sc-val">10</span><span class="sc-lbl">Levels Done</span></div>
-        <div class="stat-card"><span class="sc-icon">â›½</span><span class="sc-val">${Math.round(fuelSnapshot ?? G.fuel)}%</span><span class="sc-lbl">Fuel Left</span></div>
+        <div class="stat-card"><span class="sc-icon">⭐</span><span class="sc-val">${totalScore}</span><span class="sc-lbl">Total Score</span></div>
+        <div class="stat-card"><span class="sc-icon">🐾</span><span class="sc-val">10</span><span class="sc-lbl">Levels Done</span></div>
+        <div class="stat-card"><span class="sc-icon">⛽</span><span class="sc-val">${Math.round(fuelSnapshot ?? G.fuel)}%</span><span class="sc-lbl">Fuel Left</span></div>
       </div>`;
     ovBtn.textContent = "PLAY AGAIN";
     ovBtn.dataset.nextLvl = "0";
