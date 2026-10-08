@@ -649,8 +649,8 @@
       setEngine(true, 0.22);
     } else if (joyMoving && !up && !down && !(keys.ArrowLeft || keys.a || keys.A) && !(keys.ArrowRight || keys.d || keys.D)) {
       // joystick-only: move directly in joystick direction, no gravity
-      u.vx = lerp(u.vx, joy.dx * 320, clamp(dt * 7, 0, 1));
-      u.vy = lerp(u.vy, joy.dy * 240, clamp(dt * 7, 0, 1));
+      u.vx = lerp(u.vx, joy.dx * 480, clamp(dt * 7, 0, 1));
+      u.vy = lerp(u.vy, joy.dy * 360, clamp(dt * 7, 0, 1));
       const spd = Math.hypot(u.vx, u.vy);
       setEngine(true, clamp(spd / 280, 0.25, 1));
     } else if (!joyMoving && !up && !down && !(keys.ArrowLeft || keys.a || keys.A) && !(keys.ArrowRight || keys.d || keys.D)) {
@@ -661,11 +661,11 @@
       if (Math.abs(u.vy) < 4) u.vy = 0;
       setEngine(false);
     } else {
-      u.vx = lerp(u.vx, ax * 220, clamp(dt * 6, 0, 1));
-      if (up || pUp > 0) u.vy -= 900 * (up ? 1 : pUp) * dt;
-      else if (down || pDown > 0) u.vy += 400 * (down ? 1 : pDown) * dt;
+      u.vx = lerp(u.vx, ax * 330, clamp(dt * 6, 0, 1));
+      if (up || pUp > 0) u.vy -= 1350 * (up ? 1 : pUp) * dt;
+      else if (down || pDown > 0) u.vy += 600 * (down ? 1 : pDown) * dt;
       else u.vy = lerp(u.vy, 0, clamp(dt * 8, 0, 1));
-      u.vy = clamp(u.vy, -280, 280);
+      u.vy = clamp(u.vy, -420, 420);
       const spd = Math.hypot(u.vx, u.vy);
       setEngine(spd > 12 || movePressed(), clamp(spd / 280, 0.25, 1));
     }
