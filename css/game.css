@@ -416,6 +416,28 @@ html, body {
 
 #hint { display: none; }
 
+/* Popup fits within any screen height */
+@media (max-height: 600px), (max-width: 500px) {
+  .panel {
+    width: min(420px, 88%);
+    padding: 14px 18px 14px;
+    border-radius: 20px;
+  }
+  #ov-ufo { width: 72px; height: 50px; margin-bottom: 2px; }
+  .panel h1 { font-size: 28px; margin-bottom: 2px; }
+  .panel-gameover h1 { font-size: 30px; }
+  #ov-level { font-size: 11px; padding: 2px 12px; margin-bottom: 3px; }
+  #ov-sub { font-size: 12px; }
+  .gc-msg { font-size: 13px; margin-bottom: 8px; }
+  .panel-stars { font-size: 22px; letter-spacing: 4px; margin-bottom: 10px; }
+  .panel-stats { gap: 6px; margin-bottom: 12px; }
+  .stat-card { padding: 8px 4px; border-radius: 10px; gap: 2px; }
+  .stat-card .sc-icon { font-size: 16px; }
+  .stat-card .sc-val { font-size: 18px; }
+  .stat-card .sc-lbl { font-size: 9px; }
+  .panel button { font-size: 16px; padding: 8px 28px; margin-top: 4px; }
+}
+
 /* Small screens: rotate entire frame to force landscape */
 @media (max-width: 768px) and (orientation: portrait) {
   #frame {
