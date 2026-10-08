@@ -12,7 +12,7 @@
   const LEVELS = [
     { target: 3,  animals: [["duck", 470], ["frog", 780], ["turtle", 1000]],                                                    banner: "Level 1 - Abduct duck, frog & tortoise!" },
     { target: 5,  animals: [["duck", 300], ["duck", 700], ["frog", 500], ["frog", 950], ["turtle", 1100]],                      banner: "Level 2 - Abduct 2 ducks, 2 frogs & a tortoise!" },
-    { target: 5,  animals: [["duck", 400], ["duckling", 650], ["turtle", 900], ["frog", 280], ["frog", 1050]], frogHopScale: 3.0, banner: "Level 3 - Watch out, the frogs jump higher!" },
+    { target: 5,  animals: [["duck", 400], ["duckling", 650], ["turtle", 900], ["frog", 280], ["frog", 1050]], frogHopScale: 3.0, beamFlee: true, banner: "Level 3 - Watch out, the frogs jump higher!" },
     { target: 3,  animals: [["frog", 300], ["frog", 700], ["frog", 1050]],                                      frogHopScale: 6.0, frogFlee: true, banner: "Level 4 - 3 frogs. They flee. Good luck!" },
     { target: 4,  animals: [["duck", 400], ["frog", 650], ["turtle", 900], ["duckling", 300]], bird: true,        banner: "Level 5 - Watch the skies! A bird is flying!" },
     { target: 3,  animals: [["frog", 300], ["frog", 700], ["frog", 1050]],                      frogHopScale: 6.0, frogFlee: true, birds: [{ y: 260, speed: 180, waitT: 0, min: 3, max: 6 }, { y: 340, speed: 260, waitT: 2.5, min: 3, max: 6 }], banner: "Level 6 - 2 birds, 3 hyper frogs. Survive!" },
@@ -1030,6 +1030,11 @@
                 a.x += a.dir * a.speed * 3.0 * dt;
               }
             }
+          }
+          if (LEVELS[currentLevel].beamFlee && u.beam && !caught) {
+            const dx = u.x - a.x;
+            a.dir = dx > 0 ? -1 : 1;
+            a.x += a.dir * a.speed * 2.5 * dt;
           }
           if (LEVELS[currentLevel].animalBounce) {
             if (a.x < 150) { a.x = 150; a.dir = 1; }
