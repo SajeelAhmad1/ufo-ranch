@@ -872,7 +872,7 @@
             window._ytSaveData({ highestLevel: nextLvl, totalScore: totalScore + G.score });
           }
           if (hasNext) {
-            showOverlay("LEVEL COMPLETE!", "", "NEXT LEVEL", true, G.fuelAtLanding, nextLvl, "LEVEL " + (nextLvl + 1));
+            showOverlay("", "", "NEXT LEVEL", true, G.fuelAtLanding, nextLvl, "LEVEL " + (nextLvl + 1));
           } else {
             showGameComplete(G.fuelAtLanding);
           }
